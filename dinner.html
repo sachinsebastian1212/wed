@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sachin &amp; Kesia — Dinner, 12 September 2026</title>
-<meta name="description" content="An evening before the wedding. Saturday, 12 September 2026.">
+<meta name="description" content="Carmel Hall, Varapuzha. Saturday, 12 September 2026.">
 
 <!-- ============================================================
      WHATSAPP / OPEN GRAPH PREVIEW
@@ -16,7 +16,7 @@
 <meta property="og:type"             content="website">
 <meta property="og:site_name"        content="Sachin &amp; Kesia">
 <meta property="og:title"            content="Sachin &amp; Kesia — Dinner">
-<meta property="og:description"      content="An evening before the wedding. Saturday, 12 September 2026.">
+<meta property="og:description"      content="Carmel Hall, Varapuzha. Saturday, 12 September 2026.">
 <meta property="og:url"              content="https://SITE_BASE/">
 <meta property="og:image"            content="https://SITE_BASE/og-dinner.jpg">
 <meta property="og:image:secure_url" content="https://SITE_BASE/og-dinner.jpg">
@@ -44,7 +44,10 @@
   --linen:   #F1EADD;
   --muted:   #9C9083;
   --rule:    rgba(201,149,74,.26);
-  --board:   clamp(94px, 24vw, 200px);
+  --board:   clamp(94px, 24vw, 200px);   /* keyboard width, portrait  */
+  --board-x: min(66vw, 400px);           /* ...when expanded          */
+  --deck:    clamp(88px, 23vh, 148px);   /* keyboard height, landscape */
+  --deck-x:  min(56vh, 300px);           /* ...when expanded          */
   --display: "Bodoni Moda", Georgia, serif;
   --util:    "Jost", system-ui, sans-serif;
 }
@@ -90,22 +93,38 @@ body::after{
 }
 
 /* ============ the keyboard ============ */
-.board{
+/* The rack holds the keyboard's place in the layout. The board inside it can
+   grow past that footprint when expanded, so nothing else reflows. */
+.rack{
   position:sticky;
   top:0;
   align-self:flex-start;
   flex:none;
   width:var(--board);
   height:100svh;
+}
+
+.board{
+  position:absolute;
+  inset:0;
+  --kstep:calc(100% / var(--n, 14));
   touch-action:none;
   user-select:none;
   -webkit-user-select:none;
   -webkit-tap-highlight-color:transparent;
+  transition:width .32s cubic-bezier(.4,0,.2,1);
+}
+.board.open{
+  position:fixed;
+  left:0; top:0;
+  width:var(--board-x);
+  height:100svh;
+  z-index:30;
+  box-shadow:22px 0 70px rgba(0,0,0,.6);
 }
 
 .wkey,.bkey{
   position:absolute;
-  left:0;
   display:block;
   border:0;
   padding:0;
@@ -115,7 +134,10 @@ body::after{
 }
 
 .wkey{
+  left:0;
   width:100%;
+  top:calc(var(--i) * var(--kstep));
+  height:var(--kstep);
   background:var(--key);
   border-top:2px solid var(--blk);
   border-bottom:2px solid var(--blk);
@@ -124,9 +146,10 @@ body::after{
 .wkey.on{background:var(--key-lit);transition:background 0s}
 
 .bkey{
-  left:auto;
   right:0;
   width:62%;
+  top:calc(var(--b) * var(--kstep) - var(--kstep) * .31);
+  height:calc(var(--kstep) * .62);
   background:var(--blk);
   border-radius:0 2px 2px 0;
   box-shadow:0 0 0 1px var(--blk);
@@ -138,6 +161,97 @@ body::after{
   outline:2px solid var(--brass);
   outline-offset:-4px;
   z-index:4;
+}
+
+/* the handle that makes the keys bigger */
+.expand{
+  position:absolute;
+  top:16px;
+  left:100%;
+  margin-left:12px;
+  width:40px;
+  height:40px;
+  display:grid;
+  place-items:center;
+  padding:0;
+  border:1px solid var(--rule);
+  border-radius:50%;
+  background:rgba(22,15,8,.82);
+  -webkit-backdrop-filter:blur(6px);
+  backdrop-filter:blur(6px);
+  color:var(--brass);
+  cursor:pointer;
+  z-index:6;
+  transition:border-color .2s ease,color .2s ease,background .2s ease;
+}
+.expand:hover,.expand:focus-visible{
+  border-color:var(--brass);
+  color:var(--candle);
+  background:rgba(38,26,12,.9);
+}
+.expand:focus-visible{outline:2px solid var(--candle);outline-offset:3px}
+.expand svg{
+  width:18px;
+  height:18px;
+  transition:transform .32s cubic-bezier(.4,0,.2,1);
+}
+.board.open .expand svg{transform:rotate(180deg)}
+
+/* ---- landscape: the keys lie down along the bottom ---- */
+@media (orientation:landscape) and (max-height:620px){
+  .stage{display:block}
+
+  .rack{
+    position:fixed;
+    left:0; right:0; bottom:0;
+    top:auto;
+    width:auto;
+    height:var(--deck);
+    z-index:20;
+  }
+  .board{
+    transition:height .32s cubic-bezier(.4,0,.2,1);
+  }
+  .board.open{
+    position:fixed;
+    left:0; right:0; bottom:0;
+    top:auto;
+    width:auto;
+    height:var(--deck-x);
+    box-shadow:0 -22px 70px rgba(0,0,0,.6);
+  }
+
+  .wkey{
+    top:0;
+    height:100%;
+    left:calc(var(--i) * var(--kstep));
+    width:var(--kstep);
+    border-top:0;
+    border-bottom:0;
+    border-left:2px solid var(--blk);
+    border-right:2px solid var(--blk);
+    border-radius:0 0 3px 3px;
+  }
+  .bkey{
+    top:0;
+    right:auto;
+    height:62%;
+    left:calc(var(--b) * var(--kstep) - var(--kstep) * .31);
+    width:calc(var(--kstep) * .62);
+    border-radius:0 0 2px 2px;
+  }
+
+  .expand{
+    top:auto;
+    bottom:100%;
+    left:auto;
+    right:20px;
+    margin:0 0 12px;
+  }
+  .expand svg{transform:rotate(-90deg)}
+  .board.open .expand svg{transform:rotate(90deg)}
+
+  .panel{padding-bottom:calc(var(--deck) + 34px)}
 }
 
 /* ============ the card ============ */
@@ -305,14 +419,23 @@ body::after{
 }
 
 @media (prefers-reduced-motion:reduce){
-  .hint,.wkey,.bkey,.maps{transition:none}
+  .hint,.wkey,.bkey,.maps,.board,.expand,.expand svg{transition:none}
 }
 </style>
 </head>
 <body>
 
 <div class="stage">
-  <div class="board" id="board" role="group" aria-label="Playable piano keyboard"></div>
+  <div class="rack">
+    <div class="board" id="board" role="group" aria-label="Playable piano keyboard">
+      <button class="expand" id="expand" type="button"
+              aria-expanded="false" aria-label="Make the keyboard bigger">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+             aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+  </div>
 
   <main class="panel">
     <div class="inner">
@@ -357,10 +480,10 @@ const DINNER = {
 
   when:       ["Saturday", "12 September 2026"],
 
-  // --- fill these in when the venue is fixed ---
-  venueName:  "",                    // e.g. "Casino Hotel"
-  venueLines: [],                    // e.g. ["Willingdon Island", "Kochi, Kerala 682003"]
-  mapsUrl:    "",                    // paste a Google Maps share link
+  // --- venue ---
+  venueName:  "Carmel Hall",
+  venueLines: ["Varapuzha, Kerala"],
+  mapsUrl:    "https://maps.app.goo.gl/uv8odtBzHEgGqZ8F8",
 
   rsvp:       "",                    // e.g. "+91 98470 00000"
   note:       ["Four days before we marry", "16 September 2026"],
@@ -408,7 +531,7 @@ const NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const board = $("board");
 const octaves = Math.max(1, DINNER.octaves);
 const whiteCount = octaves * 7;
-const step = 100 / whiteCount;
+board.style.setProperty("--n", whiteCount);
 const label = m => NAMES[m % 12] + (Math.floor(m / 12) - 1);
 
 for (let o = 0; o < octaves; o++) {
@@ -421,8 +544,7 @@ for (let o = 0; o < octaves; o++) {
     w.type = "button";
     w.dataset.midi = midi;
     w.setAttribute("aria-label", label(midi));
-    w.style.top = (idx * step) + "%";
-    w.style.height = step + "%";
+    w.style.setProperty("--i", idx);
     board.appendChild(w);
 
     if (i in BLACK && idx < whiteCount - 1) {
@@ -432,8 +554,7 @@ for (let o = 0; o < octaves; o++) {
       b.type = "button";
       b.dataset.midi = bm;
       b.setAttribute("aria-label", label(bm));
-      b.style.height = (step * 0.62) + "%";
-      b.style.top = ((idx + 1) * step - step * 0.31) + "%";
+      b.style.setProperty("--b", idx + 1);
       board.appendChild(b);
     }
   }
@@ -517,7 +638,28 @@ window.addEventListener("keydown", e => {
 
 // keys are buttons, so Enter/Space already focus them — make them sound too
 board.addEventListener("click", e => {
+  if (e.target.closest(".expand")) return;
   if (e.detail === 0) press(e.target.closest(".wkey,.bkey"));
+});
+
+/* ---------------------------- expand / collapse ---------------------- */
+const expand = $("expand");
+
+function setOpen(open) {
+  board.classList.toggle("open", open);
+  expand.setAttribute("aria-expanded", String(open));
+  expand.setAttribute("aria-label", open ? "Make the keyboard smaller"
+                                         : "Make the keyboard bigger");
+}
+
+expand.addEventListener("pointerdown", e => e.stopPropagation());
+expand.addEventListener("click", e => {
+  e.stopPropagation();
+  setOpen(!board.classList.contains("open"));
+});
+
+window.addEventListener("keydown", e => {
+  if (e.key === "Escape" && board.classList.contains("open")) setOpen(false);
 });
 </script>
 </body>
