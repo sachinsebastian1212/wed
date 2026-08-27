@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sachin &amp; Kesia — Dinner, 12 September 2026</title>
+<meta name="description" content="An evening before the wedding. Saturday, 12 September 2026.">
+
+<!-- ============================================================
+     WHATSAPP / OPEN GRAPH PREVIEW
+     Replace SITE_BASE with your real GitHub Pages URL,
+     e.g. https://sachin.github.io/dinner
+     Must be absolute https:// URLs — WhatsApp does not run
+     JavaScript, so it cannot read the DINNER config below.
+     ============================================================ -->
+<meta property="og:type"             content="website">
+<meta property="og:site_name"        content="Sachin &amp; Kesia">
+<meta property="og:title"            content="Sachin &amp; Kesia — Dinner">
+<meta property="og:description"      content="An evening before the wedding. Saturday, 12 September 2026.">
+<meta property="og:url"              content="https://SITE_BASE/">
+<meta property="og:image"            content="https://SITE_BASE/og-dinner.jpg">
+<meta property="og:image:secure_url" content="https://SITE_BASE/og-dinner.jpg">
+<meta property="og:image:type"       content="image/jpeg">
+<meta property="og:image:width"      content="1080">
+<meta property="og:image:height"     content="1350">
+<meta property="og:image:alt"        content="Dinner invitation for Sachin and Kesia, 12 September 2026">
+<meta name="twitter:card"            content="summary_large_image">
+<meta name="theme-color"             content="#0A0806">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;1,6..96,400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --bg-0:    #060504;
+  --bg-1:    #171008;
+  --key:     #F5EFE4;
+  --key-lit: #C7B48C;
+  --blk:     #0B0906;
+  --blk-lit: #3E3220;
+  --brass:   #C9954A;
+  --candle:  #F2CE93;
+  --linen:   #F1EADD;
+  --muted:   #9C9083;
+  --rule:    rgba(201,149,74,.26);
+  --board:   clamp(94px, 24vw, 200px);
+  --display: "Bodoni Moda", Georgia, serif;
+  --util:    "Jost", system-ui, sans-serif;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+
+body{
+  background:#060504;
+  color:var(--linen);
+  font-family:var(--util);
+  font-weight:300;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+
+/* warm light spilling from behind the keyboard */
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  z-index:0;
+  background:
+    radial-gradient(142% 92% at 22% 2%,
+      #563E18 0%, #34250F 22%, #1E150B 44%, #100C07 68%, #090705 100%);
+}
+body::after{
+  content:"";
+  position:fixed;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  background:radial-gradient(92% 52% at 58% 110%, rgba(201,149,74,.22), transparent 72%);
+}
+
+.stage{
+  position:relative;
+  z-index:1;
+  display:flex;
+  max-width:940px;
+  margin:0 auto;
+  min-height:100svh;
+}
+
+/* ============ the keyboard ============ */
+.board{
+  position:sticky;
+  top:0;
+  align-self:flex-start;
+  flex:none;
+  width:var(--board);
+  height:100svh;
+  touch-action:none;
+  user-select:none;
+  -webkit-user-select:none;
+  -webkit-tap-highlight-color:transparent;
+}
+
+.wkey,.bkey{
+  position:absolute;
+  left:0;
+  display:block;
+  border:0;
+  padding:0;
+  cursor:pointer;
+  font:inherit;
+  transition:background .18s ease;
+}
+
+.wkey{
+  width:100%;
+  background:var(--key);
+  border-top:2px solid var(--blk);
+  border-bottom:2px solid var(--blk);
+  border-radius:0 3px 3px 0;
+}
+.wkey.on{background:var(--key-lit);transition:background 0s}
+
+.bkey{
+  left:auto;
+  right:0;
+  width:62%;
+  background:var(--blk);
+  border-radius:0 2px 2px 0;
+  box-shadow:0 0 0 1px var(--blk);
+  z-index:3;
+}
+.bkey.on{background:var(--blk-lit);transition:background 0s}
+
+.wkey:focus-visible,.bkey:focus-visible{
+  outline:2px solid var(--brass);
+  outline-offset:-4px;
+  z-index:4;
+}
+
+/* ============ the card ============ */
+.panel{
+  flex:1 1 auto;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  text-align:center;
+  padding:clamp(40px,8vh,80px) clamp(16px,4.5vw,46px);
+}
+.inner{width:100%;max-width:460px}
+
+.hint{
+  font-family:var(--util);
+  font-weight:300;
+  font-size:.6rem;
+  letter-spacing:.3em;
+  color:#6E645A;
+  margin-bottom:clamp(24px,5vh,40px);
+  transition:opacity .7s ease;
+}
+.hint.gone{opacity:0}
+
+.eyebrow{
+  font-family:var(--util);
+  font-weight:300;
+  font-size:clamp(.58rem,2.4vw,.7rem);
+  letter-spacing:.32em;
+  text-transform:uppercase;
+  color:var(--muted);
+  padding-left:.32em;
+}
+
+.names{
+  margin-top:clamp(20px,4vh,32px);
+  font-family:var(--display);
+  font-weight:400;
+  font-size:clamp(2.6rem,13vw,4.3rem);
+  line-height:1.02;
+  text-shadow:0 0 46px rgba(242,206,147,.18);
+}
+.amp{
+  display:block;
+  font-family:var(--display);
+  font-style:italic;
+  font-size:clamp(1.35rem,5.4vw,2rem);
+  color:var(--brass);
+  line-height:1;
+  margin:clamp(6px,1.4vw,12px) 0;
+}
+
+.invite{
+  margin-top:clamp(20px,4vh,30px);
+  font-family:var(--display);
+  font-style:italic;
+  font-size:clamp(.98rem,3.9vw,1.2rem);
+  line-height:1.6;
+  color:rgba(241,234,221,.84);
+}
+
+.rule{
+  width:44px;
+  height:1px;
+  border:0;
+  background:var(--brass);
+  opacity:.5;
+  margin:clamp(26px,5.5vh,42px) auto;
+}
+
+.label{
+  font-family:var(--util);
+  font-weight:300;
+  font-size:.62rem;
+  letter-spacing:.3em;
+  text-transform:uppercase;
+  color:var(--brass);
+  opacity:.9;
+  padding-left:.3em;
+}
+.when{
+  margin-top:12px;
+  font-family:var(--display);
+  font-size:clamp(1.15rem,4.7vw,1.4rem);
+  letter-spacing:.01em;
+  line-height:1.5;
+}
+
+/* ============ where ============ */
+.where{
+  margin-top:clamp(30px,5.5vh,44px);
+  border:1px solid var(--rule);
+  padding:clamp(30px,6.5vw,42px) clamp(20px,5vw,34px);
+  background:rgba(201,149,74,.04);
+}
+.where-name{
+  margin-top:14px;
+  font-family:var(--display);
+  font-weight:500;
+  font-size:clamp(1.3rem,5.6vw,1.65rem);
+  line-height:1.3;
+}
+.where-lines{
+  margin-top:11px;
+  font-family:var(--util);
+  font-weight:300;
+  font-size:clamp(.86rem,3.5vw,.96rem);
+  letter-spacing:.08em;
+  line-height:1.75;
+  color:var(--muted);
+}
+.maps{
+  display:block;
+  width:100%;
+  margin-top:clamp(24px,5vw,32px);
+  padding:18px;
+  background:transparent;
+  color:var(--linen);
+  border:1px solid var(--brass);
+  font-family:var(--util);
+  font-weight:400;
+  font-size:.74rem;
+  letter-spacing:.22em;
+  text-transform:uppercase;
+  text-decoration:none;
+  text-align:center;
+  cursor:pointer;
+  transition:background .22s ease,color .22s ease;
+}
+.maps:hover,.maps:focus-visible{background:var(--brass);color:#141008}
+.maps:focus-visible{outline:2px solid var(--candle);outline-offset:3px}
+
+.todo{
+  margin-top:14px;
+  font-family:var(--util);
+  font-size:.82rem;
+  line-height:1.75;
+  color:var(--muted);
+}
+.todo code{font-family:ui-monospace,monospace;color:var(--candle)}
+
+.rsvp{
+  margin-top:clamp(24px,4.5vh,34px);
+  font-family:var(--util);
+  font-size:.72rem;
+  letter-spacing:.2em;
+  text-transform:uppercase;
+  line-height:2;
+  color:var(--linen);
+}
+.rsvp a{color:var(--linen);text-decoration:none;border-bottom:1px solid var(--rule)}
+
+.note{
+  margin-top:clamp(30px,5.5vh,44px);
+  padding-top:clamp(20px,3.5vh,28px);
+  border-top:1px solid rgba(156,144,131,.2);
+  font-family:var(--util);
+  font-weight:300;
+  font-size:clamp(.66rem,2.7vw,.76rem);
+  letter-spacing:.13em;
+  line-height:1.95;
+  color:var(--muted);
+}
+
+@media (prefers-reduced-motion:reduce){
+  .hint,.wkey,.bkey,.maps{transition:none}
+}
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="board" id="board" role="group" aria-label="Playable piano keyboard"></div>
+
+  <main class="panel">
+    <div class="inner">
+      <p class="hint" id="hint">♪ &nbsp;Tap the keys</p>
+
+      <p class="eyebrow" id="eyebrow"></p>
+
+      <h1 class="names">
+        <span id="groom"></span>
+        <span class="amp">&amp;</span>
+        <span id="bride"></span>
+      </h1>
+
+      <p class="invite" id="invite"></p>
+
+      <hr class="rule">
+
+      <p class="label">When</p>
+      <p class="when" id="when"></p>
+
+      <section class="where">
+        <p class="label">Where</p>
+        <div id="whereBody"></div>
+      </section>
+
+      <p class="rsvp" id="rsvp"></p>
+      <p class="note" id="note"></p>
+    </div>
+  </main>
+</div>
+
+<script>
+/* =====================================================================
+   EDIT EVERYTHING HERE.
+   (Except the og: meta tags at the top — WhatsApp reads those directly.)
+   ===================================================================== */
+const DINNER = {
+  eyebrow:    "An evening before the wedding",
+  groom:      "Sachin",
+  bride:      "Kesia",
+  invite:     ["would love your company", "at dinner"],
+
+  when:       ["Saturday", "12 September 2026"],
+
+  // --- fill these in when the venue is fixed ---
+  venueName:  "",                    // e.g. "Casino Hotel"
+  venueLines: [],                    // e.g. ["Willingdon Island", "Kochi, Kerala 682003"]
+  mapsUrl:    "",                    // paste a Google Maps share link
+
+  rsvp:       "",                    // e.g. "+91 98470 00000"
+  note:       ["Four days before we marry", "16 September 2026"],
+
+  octaves:    2                      // how much keyboard to show
+};
+
+/* ------------------------------ content ------------------------------ */
+const $ = id => document.getElementById(id);
+const lines = v => [].concat(v).join("<br>");
+
+$("eyebrow").textContent = DINNER.eyebrow;
+$("groom").textContent = DINNER.groom;
+$("bride").textContent = DINNER.bride;
+$("invite").innerHTML = lines(DINNER.invite);
+$("when").innerHTML = lines(DINNER.when);
+$("note").innerHTML = lines(DINNER.note);
+
+if (DINNER.rsvp) {
+  $("rsvp").innerHTML = 'RSVP <a href="tel:' + DINNER.rsvp.replace(/\s/g, "") + '">' +
+                        DINNER.rsvp + "</a>";
+}
+
+const wb = $("whereBody");
+if (DINNER.venueName) {
+  wb.innerHTML =
+    '<p class="where-name">' + DINNER.venueName + "</p>" +
+    (DINNER.venueLines.length
+      ? '<p class="where-lines">' + lines(DINNER.venueLines) + "</p>"
+      : "");
+  if (DINNER.mapsUrl) {
+    wb.insertAdjacentHTML("beforeend",
+      '<a class="maps" href="' + DINNER.mapsUrl + '" target="_blank" rel="noopener">Open in Maps</a>');
+  }
+} else {
+  wb.innerHTML = '<p class="todo">Set <code>venueName</code>, <code>venueLines</code> ' +
+                 'and <code>mapsUrl</code> in the DINNER block to fill this in.</p>';
+}
+
+/* ------------------------------ keyboard ----------------------------- */
+const WHITE = [0, 2, 4, 5, 7, 9, 11];              // C D E F G A B
+const BLACK = { 0: 1, 1: 3, 3: 6, 4: 8, 5: 10 };   // white index -> black semitone
+const NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+const board = $("board");
+const octaves = Math.max(1, DINNER.octaves);
+const whiteCount = octaves * 7;
+const step = 100 / whiteCount;
+const label = m => NAMES[m % 12] + (Math.floor(m / 12) - 1);
+
+for (let o = 0; o < octaves; o++) {
+  for (let i = 0; i < 7; i++) {
+    const idx = o * 7 + i;
+    const midi = 60 + o * 12 + WHITE[i];           // starts at middle C
+
+    const w = document.createElement("button");
+    w.className = "wkey";
+    w.type = "button";
+    w.dataset.midi = midi;
+    w.setAttribute("aria-label", label(midi));
+    w.style.top = (idx * step) + "%";
+    w.style.height = step + "%";
+    board.appendChild(w);
+
+    if (i in BLACK && idx < whiteCount - 1) {
+      const bm = 60 + o * 12 + BLACK[i];
+      const b = document.createElement("button");
+      b.className = "bkey";
+      b.type = "button";
+      b.dataset.midi = bm;
+      b.setAttribute("aria-label", label(bm));
+      b.style.height = (step * 0.62) + "%";
+      b.style.top = ((idx + 1) * step - step * 0.31) + "%";
+      board.appendChild(b);
+    }
+  }
+}
+
+/* -------------------------------- sound ------------------------------ */
+let ctx = null;
+const freq = m => 440 * Math.pow(2, (m - 69) / 12);
+
+function strike(midi) {
+  if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+  if (ctx.state === "suspended") ctx.resume();
+
+  const t = ctx.currentTime;
+  const f = freq(midi);
+  const out = ctx.createGain();
+  out.connect(ctx.destination);
+
+  out.gain.setValueAtTime(0.0001, t);
+  out.gain.exponentialRampToValueAtTime(0.32, t + 0.006);
+  out.gain.exponentialRampToValueAtTime(0.09, t + 0.16);
+  out.gain.exponentialRampToValueAtTime(0.0001, t + 2.0);
+
+  // fundamental plus partials, each quieter and shorter as it climbs
+  [[1, 0.62, "triangle"], [2, 0.22, "sine"], [3, 0.11, "sine"],
+   [4, 0.055, "sine"], [6, 0.022, "sine"]].forEach(([h, amp, type]) => {
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = type;
+    osc.frequency.value = f * h;
+    osc.detune.value = (h - 1) * 3;                // slight inharmonicity
+    g.gain.setValueAtTime(amp, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 2.0 / Math.sqrt(h));
+    osc.connect(g); g.connect(out);
+    osc.start(t); osc.stop(t + 2.1);
+  });
+}
+
+/* ------------------------------ interaction -------------------------- */
+const hint = $("hint");
+let hinted = false;
+
+function press(el) {
+  if (!el || !el.dataset.midi) return;
+  strike(+el.dataset.midi);
+  el.classList.add("on");
+  setTimeout(() => el.classList.remove("on"), 160);
+  if (!hinted) { hinted = true; hint.classList.add("gone"); }
+}
+
+let sliding = false, last = null;
+
+board.addEventListener("pointerdown", e => {
+  const k = e.target.closest(".wkey,.bkey");
+  if (!k) return;
+  e.preventDefault();
+  sliding = true; last = k;
+  press(k);
+});
+
+board.addEventListener("pointermove", e => {
+  if (!sliding) return;
+  const el = document.elementFromPoint(e.clientX, e.clientY);
+  const key = el && el.closest ? el.closest(".wkey,.bkey") : null;
+  if (key && key !== last) { last = key; press(key); }
+});
+
+const stop = () => { sliding = false; last = null; };
+window.addEventListener("pointerup", stop);
+window.addEventListener("pointercancel", stop);
+
+// physical keyboard, home row = white keys
+const ROW = "asdfghjkl;'";
+window.addEventListener("keydown", e => {
+  if (e.repeat || e.metaKey || e.ctrlKey) return;
+  const i = ROW.indexOf(e.key.toLowerCase());
+  if (i < 0) return;
+  const key = board.querySelectorAll(".wkey")[i];
+  if (key) { e.preventDefault(); press(key); }
+});
+
+// keys are buttons, so Enter/Space already focus them — make them sound too
+board.addEventListener("click", e => {
+  if (e.detail === 0) press(e.target.closest(".wkey,.bkey"));
+});
+</script>
+</body>
+</html>
