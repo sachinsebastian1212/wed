@@ -17,9 +17,9 @@
 <meta property="og:site_name"        content="Sachin &amp; Kesia">
 <meta property="og:title"            content="Sachin &amp; Kesia — Dinner">
 <meta property="og:description"      content="Carmel Hall, Varapuzha. Saturday, 12 September 2026.">
-<meta property="og:url"              content="https://sachinsebastian1212.github.io/wed/">
-<meta property="og:image"            content="https://sachinsebastian1212.github.io/wed/og-dinner.jpg">
-<meta property="og:image:secure_url" content="https://sachinsebastian1212.github.io/wed/og-dinner.jpg">
+<meta property="og:url"              content="https://SITE_BASE/">
+<meta property="og:image"            content="https://SITE_BASE/og-dinner.jpg">
+<meta property="og:image:secure_url" content="https://SITE_BASE/og-dinner.jpg">
 <meta property="og:image:type"       content="image/jpeg">
 <meta property="og:image:width"      content="1080">
 <meta property="og:image:height"     content="1350">
@@ -158,14 +158,21 @@ body.rack-dragging .rack{width:var(--drag-w);transition:none}
   forced-color-adjust:none;
   left:0;
   width:100%;
-  top:calc(var(--i) * var(--kstep));
-  height:var(--kstep);
-  background:var(--key);
-  border-top:2px solid var(--blk);
-  border-bottom:2px solid var(--blk);
+  /* inset by 2px instead of using borders: the gap is just the dark board
+     showing through, and a phone's dark mode cannot invert a border that
+     isn't there */
+  top:calc(var(--i) * var(--kstep) + 2px);
+  height:calc(var(--kstep) - 4px);
+  background-color:var(--key);
+  background-image:linear-gradient(var(--key), var(--key));
+  border:0;
   border-radius:0 3px 3px 0;
 }
-.wkey.on{background:var(--key-lit);transition:background 0s}
+.wkey.on{
+  background-color:var(--key-lit);
+  background-image:linear-gradient(var(--key-lit), var(--key-lit));
+  transition:background 0s;
+}
 
 .bkey{
   forced-color-adjust:none;
@@ -173,12 +180,16 @@ body.rack-dragging .rack{width:var(--drag-w);transition:none}
   width:62%;
   top:calc(var(--b) * var(--kstep) - var(--kstep) * .31);
   height:calc(var(--kstep) * .62);
-  background:var(--blk);
+  background-color:var(--blk);
+  background-image:linear-gradient(var(--blk), var(--blk));
   border-radius:0 2px 2px 0;
-  box-shadow:0 0 0 1px var(--blk);
   z-index:3;
 }
-.bkey.on{background:var(--blk-lit);transition:background 0s}
+.bkey.on{
+  background-color:var(--blk-lit);
+  background-image:linear-gradient(var(--blk-lit), var(--blk-lit));
+  transition:background 0s;
+}
 
 .wkey:focus-visible,.bkey:focus-visible{
   outline:2px solid var(--brass);
@@ -249,12 +260,9 @@ body.keys-open .expand svg{
   .wkey{
     top:0;
     height:100%;
-    left:calc(var(--i) * var(--kstep));
-    width:var(--kstep);
-    border-top:0;
-    border-bottom:0;
-    border-left:2px solid var(--blk);
-    border-right:2px solid var(--blk);
+    left:calc(var(--i) * var(--kstep) + 2px);
+    width:calc(var(--kstep) - 4px);
+    border:0;
     border-radius:0 0 3px 3px;
   }
   .bkey{
@@ -682,6 +690,37 @@ function strike(midi) {
   });
 }
 
+/* a gentle bell for the drawing trail, pitched by how high up the card it is */
+const PENTA = [0, 2, 4, 7, 9];         // C D E G A — nothing can sound wrong
+
+function chime(vy, top, height) {
+  if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+  if (ctx.state === "suspended") ctx.resume();
+
+  const up = 1 - Math.min(1, Math.max(0, (vy - top) / (height || 1)));
+  const step = Math.round(up * 14);    // three octaves of the scale
+  const midi = 60 + Math.floor(step / 5) * 12 + PENTA[step % 5];
+
+  const t = ctx.currentTime;
+  const f = freq(midi);
+  const out = ctx.createGain();
+  out.connect(ctx.destination);
+  out.gain.setValueAtTime(0.0001, t);
+  out.gain.exponentialRampToValueAtTime(0.085, t + 0.02);
+  out.gain.exponentialRampToValueAtTime(0.0001, t + 1.7);
+
+  [[1, .72], [2, .17], [3.01, .06]].forEach(([h, amp]) => {
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = f * h;
+    g.gain.setValueAtTime(amp, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 1.7 / h);
+    osc.connect(g); g.connect(out);
+    osc.start(t); osc.stop(t + 1.8);
+  });
+}
+
 /* ------------------------------ interaction -------------------------- */
 const hint = $("hint");
 let hinted = false;
@@ -758,8 +797,11 @@ function setState(name) {
   document.body.classList.toggle("keys-hidden", name === "hidden");
   document.body.classList.toggle("keys-open", name === "open");
   expand.setAttribute("aria-expanded", String(name === "open"));
+  // the label describes what the next tap will do
   expand.setAttribute("aria-label",
-    name === "hidden" ? "Show the keyboard" : "Hide the keyboard");
+    name === "hidden" ? "Show the keyboard"
+    : name === "default" ? "Make the keyboard wider"
+                         : "Hide the keyboard");
   const h = document.getElementById("hint");
   if (h) h.innerHTML = name === "hidden"
     ? "\u266A &nbsp;Tap the arrow to play"
@@ -767,27 +809,33 @@ function setState(name) {
   if (typeof fitCard === "function") fitCard();
 }
 
-// tapping opens the keyboard straight out, or puts it away again; the
-// middle size is still there, but only by dragging
-const afterTap = s => s === "open" ? "hidden" : "open";
+// tapping cycles the three sizes: away -> a little -> wide -> away
+const afterTap = s => s === "hidden" ? "default"
+                    : s === "default" ? "open"
+                    : "hidden";
 
 let drag = null;
+
+/* A finger never lands perfectly still, so the old 5px threshold turned most
+   taps into a one-pixel drag that snapped straight back to where it started —
+   which is why the tab often looked dead. 14px is past the wobble of a tap. */
+const SLOP = 14;
 
 expand.addEventListener("pointerdown", e => {
   e.stopPropagation();
   e.preventDefault();
-  expand.setPointerCapture(e.pointerId);
+  try { expand.setPointerCapture(e.pointerId); } catch (err) {}
   const r = rack.getBoundingClientRect();
   const deck = isDeck();
   drag = { id: e.pointerId, x: e.clientX, y: e.clientY, deck: deck,
-           from: deck ? r.height : r.width, moved: false };
+           from: deck ? r.height : r.width, far: 0 };
 });
 
 expand.addEventListener("pointermove", e => {
   if (!drag || e.pointerId !== drag.id) return;
   const delta = drag.deck ? drag.y - e.clientY : e.clientX - drag.x;
-  if (!drag.moved && Math.abs(delta) < 5) return;
-  drag.moved = true;
+  drag.far = Math.max(drag.far, Math.abs(delta));
+  if (drag.far < SLOP) return;
 
   const max = stops()[2];
   const size = Math.max(0, Math.min(max, drag.from + delta));
@@ -798,7 +846,7 @@ expand.addEventListener("pointermove", e => {
 
 function endDrag(e) {
   if (!drag || (e && e.pointerId !== drag.id)) return;
-  const moved = drag.moved, deck = drag.deck;
+  const moved = drag.far >= SLOP, deck = drag.deck;
   drag = null;
   document.body.classList.remove("rack-dragging");
 
@@ -977,7 +1025,7 @@ addEventListener("pointermove", e => {
 
   // a quick stroke runs thinner, the way a dragged finger would
   segs.push({ x1: px, y1: py, x2: x, y2: y, t: performance.now(),
-              w: Math.max(1.6, 5.5 - d * .22) });
+              w: Math.max(.9, 3 - d * .13) });
   if (segs.length > 700) segs.splice(0, segs.length - 700);
   px = x; py = y;
 
@@ -987,7 +1035,7 @@ addEventListener("pointermove", e => {
     notes.push({
       x: x, y: y, t: now,
       life: 1400 + Math.random() * 700,
-      size: 12 + Math.random() * 8,
+      size: 11 + Math.random() * 7,
       rise: 38 + Math.random() * 44,
       sway: 4 + Math.random() * 7,
       phase: Math.random() * 6.28,
@@ -996,6 +1044,9 @@ addEventListener("pointermove", e => {
       g: GLYPHS[(Math.random() * GLYPHS.length) | 0]
     });
     if (notes.length > 40) notes.shift();
+
+    const card = panel.getBoundingClientRect();
+    chime(y + oy, card.top, card.height);
   }
 
   if (!loop) loop = requestAnimationFrame(frame);
