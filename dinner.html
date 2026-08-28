@@ -45,9 +45,9 @@
   --muted:   #9C9083;
   --rule:    rgba(201,149,74,.26);
   --board:   clamp(94px, 24vw, 200px);   /* keyboard width, portrait  */
-  --board-x: min(66vw, 400px);           /* ...when expanded          */
+  --board-x: min(46vw, 268px);           /* ...when expanded          */
   --deck:    clamp(88px, 23vh, 148px);   /* keyboard height, landscape */
-  --deck-x:  min(56vh, 300px);           /* ...when expanded          */
+  --deck-x:  min(44vh, 208px);           /* ...when expanded          */
   --display: "Bodoni Moda", Georgia, serif;
   --util:    "Jost", system-ui, sans-serif;
 }
@@ -62,6 +62,9 @@ body{
   font-weight:300;
   -webkit-font-smoothing:antialiased;
   overflow-x:hidden;
+  user-select:none;
+  -webkit-user-select:none;
+  -webkit-touch-callout:none;
 }
 
 /* warm light spilling from behind the keyboard */
@@ -93,8 +96,8 @@ body::after{
 }
 
 /* ============ the keyboard ============ */
-/* The rack holds the keyboard's place in the layout. The board inside it can
-   grow past that footprint when expanded, so nothing else reflows. */
+/* The rack is the keyboard's footprint in the layout. Expanding widens the
+   rack, so the card genuinely makes room rather than being covered over. */
 .rack{
   position:sticky;
   top:0;
@@ -102,7 +105,29 @@ body::after{
   flex:none;
   width:var(--board);
   height:100svh;
+  z-index:3;
+  transition:width .34s cubic-bezier(.4,0,.2,1);
 }
+body.keys-open .rack{width:var(--board-x)}
+body.keys-hidden .rack{width:0}
+/* at zero width the keys leave 1px shadow slivers behind, so take them out */
+body.keys-hidden .wkey,
+body.keys-hidden .bkey,
+body.keys-hidden .hint{visibility:hidden}
+body.rack-dragging .rack{width:var(--drag-w);transition:none}
+
+/* invisible probes: they resolve the clamp()/min() sizes to real pixels so
+   the drag knows what to snap to, and they stay correct on resize */
+.probe{
+  position:absolute;
+  top:0;left:0;
+  visibility:hidden;
+  pointer-events:none;
+}
+#probeA{width:var(--board);height:var(--deck)}
+#probeB{width:var(--board-x);height:var(--deck-x)}
+
+
 
 .board{
   position:absolute;
@@ -112,15 +137,6 @@ body::after{
   user-select:none;
   -webkit-user-select:none;
   -webkit-tap-highlight-color:transparent;
-  transition:width .32s cubic-bezier(.4,0,.2,1);
-}
-.board.open{
-  position:fixed;
-  left:0; top:0;
-  width:var(--board-x);
-  height:100svh;
-  z-index:30;
-  box-shadow:22px 0 70px rgba(0,0,0,.6);
 }
 
 .wkey,.bkey{
@@ -163,39 +179,48 @@ body::after{
   z-index:4;
 }
 
-/* the handle that makes the keys bigger */
+/* the pull-tab that makes the keys bigger — a plate mounted on the keyboard's
+   edge, with the arrow sitting inside it so nothing appears to float */
 .expand{
   position:absolute;
-  top:16px;
   left:100%;
-  margin-left:12px;
-  width:40px;
-  height:40px;
-  display:grid;
-  place-items:center;
+  top:50%;
+  margin-top:-47px;
+  width:44px;
+  height:94px;
   padding:0;
-  border:1px solid var(--rule);
-  border-radius:50%;
-  background:rgba(22,15,8,.82);
-  -webkit-backdrop-filter:blur(6px);
-  backdrop-filter:blur(6px);
-  color:var(--brass);
-  cursor:pointer;
+  cursor:ew-resize;
+  touch-action:none;
   z-index:6;
-  transition:border-color .2s ease,color .2s ease,background .2s ease;
+  background:linear-gradient(180deg, #291C0C 0%, #1B1208 55%, #120C06 100%);
+  border:1px solid rgba(201,149,74,.34);
+  border-left:0;
+  border-radius:0 5px 5px 0;
+  box-shadow:4px 0 16px rgba(0,0,0,.5), inset 1px 0 0 rgba(242,206,147,.14);
+  transition:border-color .2s ease, background .2s ease;
 }
 .expand:hover,.expand:focus-visible{
-  border-color:var(--brass);
-  color:var(--candle);
-  background:rgba(38,26,12,.9);
+  border-color:rgba(201,149,74,.6);
+  background:linear-gradient(180deg, #34240F 0%, #22160A 55%, #170F07 100%);
 }
 .expand:focus-visible{outline:2px solid var(--candle);outline-offset:3px}
+
+/* the arrow is centred by transform, not by layout, so rotating it in
+   landscape keeps it exactly inside the plate */
 .expand svg{
-  width:18px;
-  height:18px;
-  transition:transform .32s cubic-bezier(.4,0,.2,1);
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:22px;
+  height:38px;
+  overflow:visible;
+  transform:perspective(560px) translate(-50%,-50%);
+  transition:transform .42s cubic-bezier(.45,0,.25,1);
 }
-.board.open .expand svg{transform:rotate(180deg)}
+/* the arrow turns over on its own vertical axis rather than spinning flat */
+body.keys-open .expand svg{
+  transform:perspective(560px) translate(-50%,-50%) rotateY(180deg);
+}
 
 /* ---- landscape: the keys lie down along the bottom ---- */
 @media (orientation:landscape) and (max-height:620px){
@@ -208,18 +233,11 @@ body::after{
     width:auto;
     height:var(--deck);
     z-index:20;
+    transition:height .34s cubic-bezier(.4,0,.2,1);
   }
-  .board{
-    transition:height .32s cubic-bezier(.4,0,.2,1);
-  }
-  .board.open{
-    position:fixed;
-    left:0; right:0; bottom:0;
-    top:auto;
-    width:auto;
-    height:var(--deck-x);
-    box-shadow:0 -22px 70px rgba(0,0,0,.6);
-  }
+  body.keys-open .rack{width:auto;height:var(--deck-x)}
+  body.keys-hidden .rack{width:auto;height:0}
+  body.rack-dragging .rack{width:auto;height:var(--drag-h);transition:none}
 
   .wkey{
     top:0;
@@ -242,30 +260,74 @@ body::after{
   }
 
   .expand{
+    left:auto;
+    right:26px;
     top:auto;
     bottom:100%;
-    left:auto;
-    right:20px;
-    margin:0 0 12px;
+    margin:0;
+    width:94px;
+    height:44px;
+    border:1px solid rgba(201,149,74,.34);
+    border-bottom:0;
+    border-radius:5px 5px 0 0;
+    cursor:ns-resize;
+    box-shadow:0 -4px 16px rgba(0,0,0,.5), inset 0 1px 0 rgba(242,206,147,.14);
   }
-  .expand svg{transform:rotate(-90deg)}
-  .board.open .expand svg{transform:rotate(90deg)}
+  /* rotateY is applied in the arrow's own frame, so once it is lying on its
+     side the flip reads as tipping over from pointing up to pointing down */
+  .expand svg{transform:perspective(560px) translate(-50%,-50%) rotate(-90deg)}
+  body.keys-open .expand svg{
+    transform:perspective(560px) translate(-50%,-50%) rotate(-90deg) rotateY(180deg);
+  }
 
-  .panel{padding-bottom:calc(var(--deck) + 34px)}
+  /* the card CSS is declared after this block, so these are scoped to body
+     to outrank the plain .panel rule rather than relying on order */
+  body .panel{padding-bottom:calc(var(--deck) + 34px);touch-action:auto}
+  body.keys-open .panel{padding-bottom:calc(var(--deck-x) + 34px)}
+}
+
+/* ---- a narrow portrait card can't hold everything once the keys grow,
+        so it falls back to just the two names ---- */
+@media (orientation:portrait) and (max-width:620px){
+  body.keys-open .hint,
+  body.keys-open .eyebrow,
+  body.keys-open .invite,
+  body.keys-open .rule,
+  body.keys-open .label,
+  body.keys-open .when,
+  body.keys-open .where,
+  body.keys-open .rsvp{display:none}
+
+  body.keys-open .panel{padding-left:46px}
+  body.keys-open .names{
+    margin-top:0;
+    font-size:clamp(1.6rem,8.4vw,2.4rem);
+  }
 }
 
 /* ============ the card ============ */
 .panel{
+  position:relative;
   flex:1 1 auto;
   min-width:0;
+  touch-action:none;              /* a finger drawn across the card must not scroll it */
   display:flex;
   flex-direction:column;
   justify-content:center;
   align-items:center;
   text-align:center;
-  padding:clamp(40px,8vh,80px) clamp(16px,4.5vw,46px);
+  padding:clamp(24px,4.6vh,72px) clamp(16px,4.5vw,46px);
 }
-.inner{width:100%;max-width:460px}
+.inner{position:relative;z-index:1;width:100%;max-width:460px;transform-origin:top center}
+
+/* the card is the paper: the canvas covers it exactly and, being inside it,
+   follows along whenever the keyboard resizes the card */
+#trail{
+  position:absolute;
+  inset:0;
+  z-index:2;
+  pointer-events:none;
+}
 
 .hint{
   font-family:var(--util);
@@ -273,7 +335,8 @@ body::after{
   font-size:.6rem;
   letter-spacing:.3em;
   color:#6E645A;
-  margin-bottom:clamp(24px,5vh,40px);
+  margin-bottom:clamp(13px,2.4vh,30px);
+  white-space:nowrap;
   transition:opacity .7s ease;
 }
 .hint.gone{opacity:0}
@@ -289,11 +352,11 @@ body::after{
 }
 
 .names{
-  margin-top:clamp(20px,4vh,32px);
+  margin-top:clamp(11px,2.2vh,30px);
   font-family:var(--display);
   font-weight:400;
-  font-size:clamp(2.6rem,13vw,4.3rem);
-  line-height:1.02;
+  font-size:clamp(2.15rem,11.4vw,4rem);
+  line-height:1;
   text-shadow:0 0 46px rgba(242,206,147,.18);
 }
 .amp{
@@ -303,15 +366,15 @@ body::after{
   font-size:clamp(1.35rem,5.4vw,2rem);
   color:var(--brass);
   line-height:1;
-  margin:clamp(6px,1.4vw,12px) 0;
+  margin:clamp(2px,.8vw,10px) 0;
 }
 
 .invite{
-  margin-top:clamp(20px,4vh,30px);
+  margin-top:clamp(13px,2.5vh,28px);
   font-family:var(--display);
   font-style:italic;
-  font-size:clamp(.98rem,3.9vw,1.2rem);
-  line-height:1.6;
+  font-size:clamp(.92rem,3.6vw,1.15rem);
+  line-height:1.5;
   color:rgba(241,234,221,.84);
 }
 
@@ -321,7 +384,7 @@ body::after{
   border:0;
   background:var(--brass);
   opacity:.5;
-  margin:clamp(26px,5.5vh,42px) auto;
+  margin:clamp(15px,2.9vh,38px) auto;
 }
 
 .label{
@@ -335,56 +398,58 @@ body::after{
   padding-left:.3em;
 }
 .when{
-  margin-top:12px;
+  margin-top:9px;
   font-family:var(--display);
-  font-size:clamp(1.15rem,4.7vw,1.4rem);
+  font-size:clamp(1.05rem,4.3vw,1.35rem);
   letter-spacing:.01em;
-  line-height:1.5;
+  line-height:1.42;
 }
 
 /* ============ where ============ */
 .where{
-  margin-top:clamp(30px,5.5vh,44px);
+  display:block;
+  margin-top:clamp(17px,3.1vh,44px);
   border:1px solid var(--rule);
-  padding:clamp(30px,6.5vw,42px) clamp(20px,5vw,34px);
+  padding:clamp(13px,3vw,22px) clamp(14px,4vw,28px);
   background:rgba(201,149,74,.04);
+  color:inherit;
+  text-decoration:none;
+  -webkit-user-drag:none;
+  transition:border-color .22s ease, background .22s ease;
 }
+.where[href]{cursor:pointer}
+.where[href]:hover,.where[href]:focus-visible{
+  border-color:rgba(201,149,74,.62);
+  background:rgba(201,149,74,.1);
+}
+.where[href]:focus-visible{outline:2px solid var(--candle);outline-offset:3px}
+.pin{
+  width:.8em;height:.8em;flex:none;
+  fill:none;stroke:var(--brass);stroke-width:1.7;
+  stroke-linecap:round;stroke-linejoin:round;
+  transition:transform .22s ease;
+}
+.where[href]:hover .pin{transform:translateY(-1.5px)}
 .where-name{
-  margin-top:14px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:.42em;
+  margin-top:8px;
   font-family:var(--display);
   font-weight:500;
-  font-size:clamp(1.3rem,5.6vw,1.65rem);
-  line-height:1.3;
+  font-size:clamp(1.16rem,4.9vw,1.6rem);
+  line-height:1.26;
 }
 .where-lines{
-  margin-top:11px;
+  margin-top:7px;
   font-family:var(--util);
   font-weight:300;
-  font-size:clamp(.86rem,3.5vw,.96rem);
+  font-size:clamp(.82rem,3.3vw,.94rem);
   letter-spacing:.08em;
-  line-height:1.75;
+  line-height:1.6;
   color:var(--muted);
 }
-.maps{
-  display:block;
-  width:100%;
-  margin-top:clamp(24px,5vw,32px);
-  padding:18px;
-  background:transparent;
-  color:var(--linen);
-  border:1px solid var(--brass);
-  font-family:var(--util);
-  font-weight:400;
-  font-size:.74rem;
-  letter-spacing:.22em;
-  text-transform:uppercase;
-  text-decoration:none;
-  text-align:center;
-  cursor:pointer;
-  transition:background .22s ease,color .22s ease;
-}
-.maps:hover,.maps:focus-visible{background:var(--brass);color:#141008}
-.maps:focus-visible{outline:2px solid var(--candle);outline-offset:3px}
 
 .todo{
   margin-top:14px;
@@ -396,7 +461,7 @@ body::after{
 .todo code{font-family:ui-monospace,monospace;color:var(--candle)}
 
 .rsvp{
-  margin-top:clamp(24px,4.5vh,34px);
+  margin-top:clamp(15px,2.8vh,34px);
   font-family:var(--util);
   font-size:.72rem;
   letter-spacing:.2em;
@@ -406,38 +471,40 @@ body::after{
 }
 .rsvp a{color:var(--linen);text-decoration:none;border-bottom:1px solid var(--rule)}
 
-.note{
-  margin-top:clamp(30px,5.5vh,44px);
-  padding-top:clamp(20px,3.5vh,28px);
-  border-top:1px solid rgba(156,144,131,.2);
-  font-family:var(--util);
-  font-weight:300;
-  font-size:clamp(.66rem,2.7vw,.76rem);
-  letter-spacing:.13em;
-  line-height:1.95;
-  color:var(--muted);
-}
-
 @media (prefers-reduced-motion:reduce){
-  .hint,.wkey,.bkey,.maps,.board,.expand,.expand svg{transition:none}
+  .hint,.wkey,.bkey,.where,.pin,.rack,.expand,.expand svg{transition:none}
 }
 </style>
 </head>
 <body>
 
+<span class="probe" id="probeA" aria-hidden="true"></span>
+<span class="probe" id="probeB" aria-hidden="true"></span>
+
 <div class="stage">
-  <div class="rack">
+  <div class="rack" id="rack">
     <div class="board" id="board" role="group" aria-label="Playable piano keyboard">
       <button class="expand" id="expand" type="button"
-              aria-expanded="false" aria-label="Make the keyboard bigger">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
-             aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+              aria-expanded="false" aria-label="Resize the keyboard"
+              title="Tap to resize, or drag to hide">
+        <svg viewBox="0 0 22 38" aria-hidden="true">
+          <defs>
+            <linearGradient id="tabGold" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0"   stop-color="#F2CE93"/>
+              <stop offset=".45" stop-color="#C9954A"/>
+              <stop offset="1"   stop-color="#A87434"/>
+            </linearGradient>
+          </defs>
+          <path class="tab" d="M2.5 2.5 L20 19 L2.5 35.5 Z"
+                fill="url(#tabGold)" stroke="url(#tabGold)" stroke-width="3"
+                stroke-linejoin="round"/>
+        </svg>
       </button>
     </div>
   </div>
 
-  <main class="panel">
+  <main class="panel" id="panel">
+    <canvas id="trail" aria-hidden="true"></canvas>
     <div class="inner">
       <p class="hint" id="hint">♪ &nbsp;Tap the keys</p>
 
@@ -456,13 +523,12 @@ body::after{
       <p class="label">When</p>
       <p class="when" id="when"></p>
 
-      <section class="where">
+      <a class="where" id="where" draggable="false">
         <p class="label">Where</p>
         <div id="whereBody"></div>
-      </section>
+      </a>
 
       <p class="rsvp" id="rsvp"></p>
-      <p class="note" id="note"></p>
     </div>
   </main>
 </div>
@@ -486,7 +552,6 @@ const DINNER = {
   mapsUrl:    "https://maps.app.goo.gl/uv8odtBzHEgGqZ8F8",
 
   rsvp:       "",                    // e.g. "+91 98470 00000"
-  note:       ["Four days before we marry", "16 September 2026"],
 
   octaves:    2                      // how much keyboard to show
 };
@@ -500,23 +565,30 @@ $("groom").textContent = DINNER.groom;
 $("bride").textContent = DINNER.bride;
 $("invite").innerHTML = lines(DINNER.invite);
 $("when").innerHTML = lines(DINNER.when);
-$("note").innerHTML = lines(DINNER.note);
 
 if (DINNER.rsvp) {
   $("rsvp").innerHTML = 'RSVP <a href="tel:' + DINNER.rsvp.replace(/\s/g, "") + '">' +
                         DINNER.rsvp + "</a>";
 }
 
+const PIN = '<svg class="pin" viewBox="0 0 24 24" aria-hidden="true">' +
+  '<path d="M12 21.5s6.75-6.1 6.75-11.25a6.75 6.75 0 1 0-13.5 0C5.25 15.4 12 21.5 12 21.5z"/>' +
+  '<circle cx="12" cy="10" r="2.6"/></svg>';
+
 const wb = $("whereBody");
 if (DINNER.venueName) {
   wb.innerHTML =
-    '<p class="where-name">' + DINNER.venueName + "</p>" +
+    '<p class="where-name">' + DINNER.venueName + (DINNER.mapsUrl ? PIN : "") + "</p>" +
     (DINNER.venueLines.length
       ? '<p class="where-lines">' + lines(DINNER.venueLines) + "</p>"
       : "");
+  // the box itself is the link, so a tap anywhere in it opens the map
   if (DINNER.mapsUrl) {
-    wb.insertAdjacentHTML("beforeend",
-      '<a class="maps" href="' + DINNER.mapsUrl + '" target="_blank" rel="noopener">Open in Maps</a>');
+    const box = $("where");
+    box.href = DINNER.mapsUrl;
+    box.target = "_blank";
+    box.rel = "noopener";
+    box.setAttribute("aria-label", "Open " + DINNER.venueName + " in Maps");
   }
 } else {
   wb.innerHTML = '<p class="todo">Set <code>venueName</code>, <code>venueLines</code> ' +
@@ -642,25 +714,260 @@ board.addEventListener("click", e => {
   if (e.detail === 0) press(e.target.closest(".wkey,.bkey"));
 });
 
-/* ---------------------------- expand / collapse ---------------------- */
+/* ------------------------- resize: drag or tap ----------------------- */
+/* Three sizes: hidden, default, expanded. Tap the tab to step between the
+   last two; drag it to reach any of them, and it snaps to the nearest. */
 const expand = $("expand");
+const rack   = $("rack");
+const probeA = $("probeA");
+const probeB = $("probeB");
 
-function setOpen(open) {
-  board.classList.toggle("open", open);
-  expand.setAttribute("aria-expanded", String(open));
-  expand.setAttribute("aria-label", open ? "Make the keyboard smaller"
-                                         : "Make the keyboard bigger");
+const STATES = ["hidden", "default", "open"];
+let state = "default";
+
+const isDeck = () =>
+  matchMedia("(orientation:landscape) and (max-height:620px)").matches;
+
+// resolved pixel sizes for the three stops, re-read each time so they stay
+// right after a resize or a rotation
+function stops() {
+  const a = probeA.getBoundingClientRect();
+  const b = probeB.getBoundingClientRect();
+  return isDeck() ? [0, a.height, b.height] : [0, a.width, b.width];
 }
 
-expand.addEventListener("pointerdown", e => e.stopPropagation());
+function setState(name) {
+  state = name;
+  document.body.classList.toggle("keys-hidden", name === "hidden");
+  document.body.classList.toggle("keys-open", name === "open");
+  expand.setAttribute("aria-expanded", String(name === "open"));
+  expand.setAttribute("aria-label",
+    name === "hidden" ? "Show the keyboard"
+    : name === "open" ? "Make the keyboard smaller"
+                      : "Make the keyboard bigger");
+  if (typeof fitCard === "function") fitCard();
+}
+
+// tapping steps default <-> expanded; from hidden it just comes back
+const afterTap = s => s === "default" ? "open" : "default";
+
+let drag = null;
+
+expand.addEventListener("pointerdown", e => {
+  e.stopPropagation();
+  e.preventDefault();
+  expand.setPointerCapture(e.pointerId);
+  const r = rack.getBoundingClientRect();
+  const deck = isDeck();
+  drag = { id: e.pointerId, x: e.clientX, y: e.clientY, deck: deck,
+           from: deck ? r.height : r.width, moved: false };
+});
+
+expand.addEventListener("pointermove", e => {
+  if (!drag || e.pointerId !== drag.id) return;
+  const delta = drag.deck ? drag.y - e.clientY : e.clientX - drag.x;
+  if (!drag.moved && Math.abs(delta) < 5) return;
+  drag.moved = true;
+
+  const max = stops()[2];
+  const size = Math.max(0, Math.min(max, drag.from + delta));
+  document.body.classList.add("rack-dragging");
+  document.documentElement.style.setProperty(
+    drag.deck ? "--drag-h" : "--drag-w", size + "px");
+});
+
+function endDrag(e) {
+  if (!drag || (e && e.pointerId !== drag.id)) return;
+  const moved = drag.moved, deck = drag.deck;
+  drag = null;
+  document.body.classList.remove("rack-dragging");
+
+  if (!moved) {                       // a tap, not a drag
+    setState(afterTap(state));
+    return;
+  }
+  const r = rack.getBoundingClientRect();
+  const now = deck ? r.height : r.width;
+  let best = 0;
+  stops().forEach((v, i) => {
+    if (Math.abs(v - now) < Math.abs(stops()[best] - now)) best = i;
+  });
+  setState(STATES[best]);
+}
+
+expand.addEventListener("pointerup", endDrag);
+expand.addEventListener("pointercancel", endDrag);
+
+// keyboard activation (Enter/Space) arrives as a click with no pointer detail
 expand.addEventListener("click", e => {
   e.stopPropagation();
-  setOpen(!board.classList.contains("open"));
+  if (e.detail === 0) setState(afterTap(state));
 });
 
 window.addEventListener("keydown", e => {
-  if (e.key === "Escape" && board.classList.contains("open")) setOpen(false);
+  if (e.key === "Escape" && state !== "default") setState("default");
 });
+
+/* ------------------- keep the card on one screen --------------------- */
+/* The layout is tuned to fit a phone without scrolling. On a very short
+   screen, or once a long venue name wraps, this scales the card down the
+   last few percent rather than letting it spill into a scroll. */
+const panel = $("panel");
+const inner = document.querySelector(".inner");
+
+function fitCard() {
+  inner.style.transform = "";
+  inner.style.height = "";
+  if (isDeck()) return;                 // the bottom-deck layout may scroll
+
+  const cs = getComputedStyle(panel);
+  const room = innerHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+  const need = inner.getBoundingClientRect().height;
+  if (need <= room) return;
+
+  // scale() alone leaves the layout box full height and the page still
+  // scrolls, so the box is pinned to the scaled height as well
+  const k = Math.max(0.7, room / need);
+  inner.style.transform = "scale(" + k.toFixed(4) + ")";
+  inner.style.height = (need * k) + "px";
+}
+
+addEventListener("resize", fitCard);
+addEventListener("orientationchange", () => setTimeout(fitCard, 120));
+rack.addEventListener("transitionend", e => {
+  if (e.propertyName === "width" || e.propertyName === "height") fitCard();
+});
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitCard);
+fitCard();
+
+/* ----------------------- draw on the card ---------------------------- */
+/* Press and drag anywhere on the card and it takes a brass mark that fades
+   by itself. Segments carry the moment they were made, so the canvas never
+   has to be wiped by hand, and the loop stops once the last one has gone. */
+const trail = $("trail");
+const tctx = trail.getContext("2d");
+const calm = matchMedia("(prefers-reduced-motion: reduce)");
+
+const LIFE = 2000;                     // how long a mark lasts, in ms
+const GLYPHS = ["\u266A", "\u266B", "\u2669", "\u266C"];
+
+let segs = [], notes = [], loop = 0;
+let inking = false, px = 0, py = 0, lastNote = 0;
+let cw = 0, ch = 0;
+
+function sizeTrail() {
+  const r = panel.getBoundingClientRect();
+  if (!r.width) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  cw = r.width; ch = r.height;
+  trail.width = Math.round(cw * dpr);
+  trail.height = Math.round(ch * dpr);
+  tctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+sizeTrail();
+// the card changes width whenever the keyboard does, so follow its box
+if (typeof ResizeObserver === "function") new ResizeObserver(sizeTrail).observe(panel);
+else addEventListener("resize", sizeTrail);
+
+function frame() {
+  const now = performance.now();
+  tctx.clearRect(0, 0, cw, ch);
+  tctx.lineCap = "round";
+  tctx.lineJoin = "round";
+  let live = 0;
+
+  /* Two passes: the whole halo first, then the core over all of it. Done
+     segment by segment in a single pass, each halo lands on the core laid
+     down before it and chops the stroke into dashes. */
+  for (let pass = 0; pass < 2; pass++) {
+    tctx.strokeStyle = pass ? "#F6E3BC" : "rgba(201,149,74,.42)";
+    for (const s of segs) {
+      const age = (now - s.t) / LIFE;
+      if (age >= 1) continue;
+      if (!pass) live++;
+      const fade = 1 - age;
+      tctx.globalAlpha = fade * fade;   // holds a moment, then goes quickly
+      tctx.lineWidth = s.w * (.35 + .65 * fade) * (pass ? 1 : 3.4);
+      tctx.beginPath();
+      tctx.moveTo(s.x1, s.y1);
+      tctx.lineTo(s.x2, s.y2);
+      tctx.stroke();
+    }
+  }
+
+  // notes shaken loose at the tip of the stroke, drifting up as they go
+  for (const n of notes) {
+    const age = (now - n.t) / n.life;
+    if (age >= 1) continue;
+    live++;
+    const k = 1 - age;
+    tctx.save();
+    tctx.globalAlpha = Math.min(1, age * 10) * k * k;
+    tctx.translate(n.x + Math.sin(age * 5 + n.phase) * n.sway, n.y - n.rise * age);
+    tctx.rotate(n.tilt + n.spin * age);
+    tctx.font = n.size + "px Georgia, serif";
+    tctx.textAlign = "center";
+    tctx.textBaseline = "middle";
+    tctx.fillStyle = "#E7C583";
+    tctx.fillText(n.g, 0, 0);
+    tctx.restore();
+  }
+  tctx.globalAlpha = 1;
+
+  if (live) { loop = requestAnimationFrame(frame); return; }
+  segs = []; notes = []; loop = 0;      // nothing left — let the loop rest
+  tctx.clearRect(0, 0, cw, ch);
+}
+
+const at = e => {
+  const r = trail.getBoundingClientRect();
+  return [e.clientX - r.left, e.clientY - r.top];
+};
+
+panel.addEventListener("pointerdown", e => {
+  if (calm.matches || drag) return;
+  // the deck layout scrolls, so a finger there belongs to the page, not the pen
+  if (isDeck() && e.pointerType === "touch") return;
+  const p = at(e);
+  inking = true; px = p[0]; py = p[1];
+});
+
+addEventListener("pointermove", e => {
+  if (!inking) return;
+  const p = at(e), x = p[0], y = p[1];
+  const d = Math.hypot(x - px, y - py);
+  if (d < 1.2) return;                  // ignore the jitter of a still finger
+
+  // a quick stroke runs thinner, the way a dragged finger would
+  segs.push({ x1: px, y1: py, x2: x, y2: y, t: performance.now(),
+              w: Math.max(1.6, 5.5 - d * .22) });
+  if (segs.length > 700) segs.splice(0, segs.length - 700);
+  px = x; py = y;
+
+  const now = performance.now();
+  if (now - lastNote > 170 && Math.random() < .55) {
+    lastNote = now;
+    notes.push({
+      x: x, y: y, t: now,
+      life: 1400 + Math.random() * 700,
+      size: 12 + Math.random() * 8,
+      rise: 38 + Math.random() * 44,
+      sway: 4 + Math.random() * 7,
+      phase: Math.random() * 6.28,
+      tilt: (Math.random() - .5) * .6,
+      spin: (Math.random() - .5) * .8,
+      g: GLYPHS[(Math.random() * GLYPHS.length) | 0]
+    });
+    if (notes.length > 40) notes.shift();
+  }
+
+  if (!loop) loop = requestAnimationFrame(frame);
+}, { passive: true });
+
+const stopInk = () => { inking = false; };
+addEventListener("pointerup", stopInk);
+addEventListener("pointercancel", stopInk);
+
 </script>
 </body>
 </html>
