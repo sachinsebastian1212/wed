@@ -19,10 +19,12 @@ CONFIG = {
     "invite":      ["would love your company", "at dinner"],
     "when":        ["Saturday", "12 September 2026"],
 
-    "venue_name":  "",          # e.g. "Casino Hotel"
-    "venue_lines": [],          # e.g. ["Willingdon Island", "Kochi, Kerala"]
+    "venue_name":  "Carmel Hall",
+    "venue_lines": ["Varapuzha, Kerala"],
 
-    "note":        "Four days before we marry — 16 September 2026",
+    "note":        "",
+
+    "keys":        False,      # set True to bring the keyboard back
     "octaves":     2,
 }
 OUT_DIR = "/mnt/user-data/outputs"
@@ -39,10 +41,8 @@ RULE   = (104, 82, 48)
 BOARD_W = 300          # white keys stop here; black keys run flush to the panel
 BLACK_X = 116
 
-PANEL_L = BOARD_W + 62
-PANEL_R = W - 66
-PX = (PANEL_L + PANEL_R) / 2
-MAXW = PANEL_R - PANEL_L
+# set in build(), since they depend on whether the keyboard is drawn
+PANEL_L = PANEL_R = PX = MAXW = 0
 
 FD = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts")
 _FONT_URLS = {
@@ -80,7 +80,7 @@ def jost(size, weight=300):
 def background():
     """Warm light spilling from behind the keyboard, falling off to near-black."""
     y, x = np.mgrid[0:H, 0:W].astype(np.float32)
-    cx, cy = W * 0.22, H * 0.02
+    cx, cy = (W * 0.22 if CONFIG.get("keys", False) else W * 0.5), H * 0.02
     d = np.sqrt(((x - cx) / (W * 1.42)) ** 2 + ((y - cy) / (H * 0.90)) ** 2)
 
     stops = [(0.00, (86, 62, 24)), (0.30, (52, 37, 16)),
@@ -196,10 +196,19 @@ def compose(d, k):
 
 
 def build():
+    global PANEL_L, PANEL_R, PX, MAXW
     ensure_fonts()
+
+    keys = CONFIG.get("keys", False)
+    PANEL_L = (BOARD_W + 62) if keys else 92
+    PANEL_R = W - (66 if keys else 92)
+    PX = (PANEL_L + PANEL_R) / 2
+    MAXW = PANEL_R - PANEL_L
+
     img = background()
     d = ImageDraw.Draw(img)
-    keyboard(d, CONFIG["octaves"])
+    if keys:
+        keyboard(d, CONFIG["octaves"])
 
     TOP, BOTTOM = 150, 1204        # centre-square safe area, in case WhatsApp crops
 
@@ -227,7 +236,10 @@ def build():
             box[1] = cursor
 
     if box[0] is not None:
-        d.rectangle([PANEL_L - 8, box[0], PANEL_R + 8, box[1] or cursor],
+        # without the keyboard the panel is the full page, and a frame that
+        # wide dwarfs the two short lines inside it
+        half = min((PANEL_R - PANEL_L) / 2 + 8, 330)
+        d.rectangle([PX - half, box[0], PX + half, box[1] or cursor],
                     outline=RULE, width=1)
 
     for y, fn in placed:

@@ -26,6 +26,7 @@
 <meta property="og:image:alt"        content="Dinner invitation for Sachin and Kesia, 12 September 2026">
 <meta name="twitter:card"            content="summary_large_image">
 <meta name="theme-color"             content="#0A0806">
+<meta name="color-scheme"            content="dark">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -33,6 +34,11 @@
 
 <style>
 :root{
+  /* The page is dark on purpose. Declaring that stops a phone's own dark
+     mode from repainting it — forced dark was greying the ivory keys and
+     making the keyboard look disabled. */
+  color-scheme:dark;
+
   --bg-0:    #060504;
   --bg-1:    #171008;
   --key:     #F5EFE4;
@@ -112,8 +118,7 @@ body.keys-open .rack{width:var(--board-x)}
 body.keys-hidden .rack{width:0}
 /* at zero width the keys leave 1px shadow slivers behind, so take them out */
 body.keys-hidden .wkey,
-body.keys-hidden .bkey,
-body.keys-hidden .hint{visibility:hidden}
+body.keys-hidden .bkey{visibility:hidden}
 body.rack-dragging .rack{width:var(--drag-w);transition:none}
 
 /* invisible probes: they resolve the clamp()/min() sizes to real pixels so
@@ -150,6 +155,7 @@ body.rack-dragging .rack{width:var(--drag-w);transition:none}
 }
 
 .wkey{
+  forced-color-adjust:none;
   left:0;
   width:100%;
   top:calc(var(--i) * var(--kstep));
@@ -162,6 +168,7 @@ body.rack-dragging .rack{width:var(--drag-w);transition:none}
 .wkey.on{background:var(--key-lit);transition:background 0s}
 
 .bkey{
+  forced-color-adjust:none;
   right:0;
   width:62%;
   top:calc(var(--b) * var(--kstep) - var(--kstep) * .31);
@@ -320,12 +327,21 @@ body.keys-open .expand svg{
 }
 .inner{position:relative;z-index:1;width:100%;max-width:460px;transform-origin:top center}
 
-/* the card is the paper: the canvas covers it exactly and, being inside it,
-   follows along whenever the keyboard resizes the card */
+/* The canvas covers the viewport and is clipped to the card each frame, so
+   it tracks the keyboard as it resizes.
+
+   width/height are spelled out on purpose. A canvas is a replaced element,
+   so inset:0 alone does NOT stretch it — it keeps its intrinsic 300x150 and
+   the browser then scales the backing store up to fit, which is what pushed
+   every mark down and to the right by the device pixel ratio. */
 #trail{
-  position:absolute;
-  inset:0;
-  z-index:2;
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  display:block;
+  z-index:6;
   pointer-events:none;
 }
 
@@ -481,6 +497,8 @@ body.keys-open .expand svg{
 <span class="probe" id="probeA" aria-hidden="true"></span>
 <span class="probe" id="probeB" aria-hidden="true"></span>
 
+<canvas id="trail" aria-hidden="true"></canvas>
+
 <div class="stage">
   <div class="rack" id="rack">
     <div class="board" id="board" role="group" aria-label="Playable piano keyboard">
@@ -504,7 +522,6 @@ body.keys-open .expand svg{
   </div>
 
   <main class="panel" id="panel">
-    <canvas id="trail" aria-hidden="true"></canvas>
     <div class="inner">
       <p class="hint" id="hint">♪ &nbsp;Tap the keys</p>
 
@@ -723,7 +740,7 @@ const probeA = $("probeA");
 const probeB = $("probeB");
 
 const STATES = ["hidden", "default", "open"];
-let state = "default";
+let state = "hidden";
 
 const isDeck = () =>
   matchMedia("(orientation:landscape) and (max-height:620px)").matches;
@@ -742,14 +759,17 @@ function setState(name) {
   document.body.classList.toggle("keys-open", name === "open");
   expand.setAttribute("aria-expanded", String(name === "open"));
   expand.setAttribute("aria-label",
-    name === "hidden" ? "Show the keyboard"
-    : name === "open" ? "Make the keyboard smaller"
-                      : "Make the keyboard bigger");
+    name === "hidden" ? "Show the keyboard" : "Hide the keyboard");
+  const h = document.getElementById("hint");
+  if (h) h.innerHTML = name === "hidden"
+    ? "\u266A &nbsp;Tap the arrow to play"
+    : "\u266A &nbsp;Tap the keys";
   if (typeof fitCard === "function") fitCard();
 }
 
-// tapping steps default <-> expanded; from hidden it just comes back
-const afterTap = s => s === "default" ? "open" : "default";
+// tapping opens the keyboard straight out, or puts it away again; the
+// middle size is still there, but only by dragging
+const afterTap = s => s === "open" ? "hidden" : "open";
 
 let drag = null;
 
@@ -805,7 +825,7 @@ expand.addEventListener("click", e => {
 });
 
 window.addEventListener("keydown", e => {
-  if (e.key === "Escape" && state !== "default") setState("default");
+  if (e.key === "Escape" && state !== "hidden") setState("hidden");
 });
 
 /* ------------------- keep the card on one screen --------------------- */
@@ -839,6 +859,7 @@ rack.addEventListener("transitionend", e => {
 });
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitCard);
 fitCard();
+setState("hidden");        // the card comes first; the keys wait behind the arrow
 
 /* ----------------------- draw on the card ---------------------------- */
 /* Press and drag anywhere on the card and it takes a brass mark that fades
@@ -853,21 +874,33 @@ const GLYPHS = ["\u266A", "\u266B", "\u2669", "\u266C"];
 
 let segs = [], notes = [], loop = 0;
 let inking = false, px = 0, py = 0, lastNote = 0;
-let cw = 0, ch = 0;
+let cw = 0, ch = 0, ox = 0, oy = 0;
 
+/* Everything is measured from the canvas's own box. innerWidth/innerHeight
+   are not the same thing: they include a desktop scrollbar, and on a phone
+   they shrink with the address bar while a fixed element keeps the taller
+   viewport. Sizing the backing store from those stretched the canvas, which
+   is what pushed the marks down and to the right of the finger. */
 function sizeTrail() {
-  const r = panel.getBoundingClientRect();
-  if (!r.width) return;
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const r = trail.getBoundingClientRect();
+  if (!r.width || !r.height) return;
+  ox = r.left; oy = r.top;
   cw = r.width; ch = r.height;
+
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
   trail.width = Math.round(cw * dpr);
   trail.height = Math.round(ch * dpr);
-  tctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // derived from the real backing size, so rounding cannot skew it either
+  tctx.setTransform(trail.width / cw, 0, 0, trail.height / ch, 0, 0);
 }
 sizeTrail();
-// the card changes width whenever the keyboard does, so follow its box
-if (typeof ResizeObserver === "function") new ResizeObserver(sizeTrail).observe(panel);
-else addEventListener("resize", sizeTrail);
+addEventListener("resize", sizeTrail);
+addEventListener("scroll", sizeTrail, { passive: true });
+if (window.visualViewport) {
+  visualViewport.addEventListener("resize", sizeTrail);
+  visualViewport.addEventListener("scroll", sizeTrail);
+}
+if (typeof ResizeObserver === "function") new ResizeObserver(sizeTrail).observe(trail);
 
 function frame() {
   const now = performance.now();
@@ -876,18 +909,25 @@ function frame() {
   tctx.lineJoin = "round";
   let live = 0;
 
+  // clipped to the card, so the keys stay clean however they are sized
+  const card = panel.getBoundingClientRect();
+  tctx.save();
+  tctx.beginPath();
+  tctx.rect(card.left - ox, card.top - oy, card.width, card.height);
+  tctx.clip();
+
   /* Two passes: the whole halo first, then the core over all of it. Done
      segment by segment in a single pass, each halo lands on the core laid
      down before it and chops the stroke into dashes. */
   for (let pass = 0; pass < 2; pass++) {
-    tctx.strokeStyle = pass ? "#F6E3BC" : "rgba(201,149,74,.42)";
+    tctx.strokeStyle = pass ? "#B08C55" : "rgba(122,92,46,.30)";
     for (const s of segs) {
       const age = (now - s.t) / LIFE;
       if (age >= 1) continue;
       if (!pass) live++;
       const fade = 1 - age;
-      tctx.globalAlpha = fade * fade;   // holds a moment, then goes quickly
-      tctx.lineWidth = s.w * (.35 + .65 * fade) * (pass ? 1 : 3.4);
+      tctx.globalAlpha = fade * fade * (pass ? .8 : 1);
+      tctx.lineWidth = s.w * (.4 + .6 * fade) * (pass ? 1 : 3);
       tctx.beginPath();
       tctx.moveTo(s.x1, s.y1);
       tctx.lineTo(s.x2, s.y2);
@@ -902,16 +942,18 @@ function frame() {
     live++;
     const k = 1 - age;
     tctx.save();
-    tctx.globalAlpha = Math.min(1, age * 10) * k * k;
+    tctx.globalAlpha = Math.min(1, age * 10) * k * k * .8;
     tctx.translate(n.x + Math.sin(age * 5 + n.phase) * n.sway, n.y - n.rise * age);
     tctx.rotate(n.tilt + n.spin * age);
     tctx.font = n.size + "px Georgia, serif";
     tctx.textAlign = "center";
     tctx.textBaseline = "middle";
-    tctx.fillStyle = "#E7C583";
+    tctx.fillStyle = "#A9885A";
     tctx.fillText(n.g, 0, 0);
     tctx.restore();
   }
+
+  tctx.restore();
   tctx.globalAlpha = 1;
 
   if (live) { loop = requestAnimationFrame(frame); return; }
@@ -919,22 +961,17 @@ function frame() {
   tctx.clearRect(0, 0, cw, ch);
 }
 
-const at = e => {
-  const r = trail.getBoundingClientRect();
-  return [e.clientX - r.left, e.clientY - r.top];
-};
-
 panel.addEventListener("pointerdown", e => {
   if (calm.matches || drag) return;
   // the deck layout scrolls, so a finger there belongs to the page, not the pen
   if (isDeck() && e.pointerType === "touch") return;
-  const p = at(e);
-  inking = true; px = p[0]; py = p[1];
+  sizeTrail();                          // re-read the box before the first mark
+  inking = true; px = e.clientX - ox; py = e.clientY - oy;
 });
 
 addEventListener("pointermove", e => {
   if (!inking) return;
-  const p = at(e), x = p[0], y = p[1];
+  const x = e.clientX - ox, y = e.clientY - oy;
   const d = Math.hypot(x - px, y - py);
   if (d < 1.2) return;                  // ignore the jitter of a still finger
 
