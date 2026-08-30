@@ -236,10 +236,15 @@ body.rack-dragging .rack{width:var(--drag-w);transition:none}
   transform:perspective(560px) translate(-50%,-50%);
   transition:transform .42s cubic-bezier(.45,0,.25,1);
 }
-/* the arrow turns over on its own vertical axis rather than spinning flat */
-body.keys-open .expand svg{
-  transform:perspective(560px) translate(-50%,-50%) rotateY(180deg);
+/* The arrow always points out of the keyboard. When the next tap will put the
+   keyboard away, a bar slides in beside it — the usual "collapse to the edge"
+   mark — rather than the arrow reversing, which read the wrong way round. */
+.expand .bar{
+  opacity:0;
+  transform:translateX(-5px);
+  transition:opacity .3s ease, transform .3s ease;
 }
+body.keys-open .expand .bar{opacity:1;transform:translateX(0)}
 
 /* ---- landscape: the keys lie down along the bottom ---- */
 @media (orientation:landscape) and (max-height:620px){
@@ -289,17 +294,28 @@ body.keys-open .expand svg{
     cursor:ns-resize;
     box-shadow:0 -4px 16px rgba(0,0,0,.5), inset 0 1px 0 rgba(242,206,147,.14);
   }
-  /* rotateY is applied in the arrow's own frame, so once it is lying on its
-     side the flip reads as tipping over from pointing up to pointing down */
+  /* laid on its side the arrow points up out of the deck, and the collapse
+     bar lands under it, which is the way the deck goes when it is put away */
   .expand svg{transform:perspective(560px) translate(-50%,-50%) rotate(-90deg)}
-  body.keys-open .expand svg{
-    transform:perspective(560px) translate(-50%,-50%) rotate(-90deg) rotateY(180deg);
-  }
 
   /* the card CSS is declared after this block, so these are scoped to body
      to outrank the plain .panel rule rather than relying on order */
   body .panel{padding-bottom:calc(var(--deck) + 34px);touch-action:auto}
   body.keys-open .panel{padding-bottom:calc(var(--deck-x) + 34px)}
+
+  /* the deck at full height leaves only a sliver of card, so keep the names */
+  body.keys-open .hint,
+  body.keys-open .eyebrow,
+  body.keys-open .invite,
+  body.keys-open .rule,
+  body.keys-open .label,
+  body.keys-open .when,
+  body.keys-open .where,
+  body.keys-open .rsvp{display:none}
+  body.keys-open .names{
+    margin-top:0;
+    font-size:clamp(1.5rem,6.6svh,2.6rem);
+  }
 }
 
 /* ---- a narrow portrait card can't hold everything once the keys grow,
@@ -314,11 +330,28 @@ body.keys-open .expand svg{
   body.keys-open .where,
   body.keys-open .rsvp{display:none}
 
-  body.keys-open .panel{padding-left:46px}
+  body.keys-open .panel{padding-left:0}
+  body.keys-open .inner{position:static}   /* so the names sit against the panel */
+
+  /* Wide open there is no room for the card, so the names lie on their side,
+     reading top to bottom. Turning the phone brings them upright — and hands
+     the keyboard the whole width to be played on. Nudged right of centre to
+     stay clear of the tab. */
   body.keys-open .names{
-    margin-top:0;
-    font-size:clamp(1.6rem,8.4vw,2.4rem);
+    position:absolute;
+    left:calc(50% + 24px);
+    top:50%;
+    display:flex;
+    flex-direction:column-reverse;      /* so it reads Sachin, &, Kesia once turned */
+    align-items:center;
+    gap:0;
+    width:74svh;
+    margin:0;
+    white-space:nowrap;
+    font-size:clamp(1.55rem,5.6svh,2.4rem);
+    transform:translate(-50%,-50%) rotate(90deg);
   }
+  body.keys-open .amp{margin:0;font-size:.62em}
 }
 
 /* ============ the card ============ */
@@ -497,7 +530,7 @@ body.keys-open .expand svg{
 .rsvp a{color:var(--linen);text-decoration:none;border-bottom:1px solid var(--rule)}
 
 @media (prefers-reduced-motion:reduce){
-  .hint,.where,.pin,.rack,.expand,.expand svg{transition:none}
+  .hint,.where,.pin,.rack,.expand,.expand svg,.expand .bar{transition:none}
 }
 </style>
 </head>
@@ -523,9 +556,11 @@ body.keys-open .expand svg{
               <stop offset="1"   stop-color="#A87434"/>
             </linearGradient>
           </defs>
-          <path class="tab" d="M2.5 2.5 L20 19 L2.5 35.5 Z"
+          <path class="tab" d="M1.5 3.5 L14.5 19 L1.5 34.5 Z"
                 fill="url(#tabGold)" stroke="url(#tabGold)" stroke-width="3"
                 stroke-linejoin="round"/>
+          <rect class="bar" x="17.2" y="3" width="3.6" height="32" rx="1.8"
+                fill="url(#tabGold)"/>
         </svg>
       </button>
     </div>
@@ -1188,7 +1223,9 @@ function frame() {
     const k = 1 - age;
     tctx.save();
     tctx.globalAlpha = Math.min(1, age * 10) * k * k * .8;
-    tctx.translate(n.x + Math.sin(age * 5 + n.phase) * n.sway, n.y - n.rise * age);
+    // eases out, so it clears the fingertip fast and then drifts
+    const lift = n.rise * (1 - (1 - age) * (1 - age));
+    tctx.translate(n.x + Math.sin(age * 5 + n.phase) * n.sway, n.y - lift);
     tctx.rotate(n.tilt + n.spin * age);
     tctx.font = n.size + "px Georgia, serif";
     tctx.textAlign = "center";
@@ -1241,10 +1278,10 @@ addEventListener("pointermove", e => {
     lastNote = now;
     notes.push({
       x: x, y: y, t: now,
-      life: 1400 + Math.random() * 700,
-      size: 11 + Math.random() * 7,
-      rise: 38 + Math.random() * 44,
-      sway: 4 + Math.random() * 7,
+      life: 1600 + Math.random() * 800,
+      size: 21 + Math.random() * 13,
+      rise: 105 + Math.random() * 65,
+      sway: 5 + Math.random() * 9,
       phase: Math.random() * 6.28,
       tilt: (Math.random() - .5) * .6,
       spin: (Math.random() - .5) * .8,
