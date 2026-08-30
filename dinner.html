@@ -912,8 +912,13 @@ function stopRun() {
 const hint = $("hint");
 let hinted = false;
 
+let lastHit = { el: null, t: 0 };
+
 function press(el) {
   if (!el || !el.dataset.midi) return;
+  const now = performance.now();
+  if (el === lastHit.el && now - lastHit.t < 70) return;
+  lastHit = { el: el, t: now };
   strike(+el.dataset.midi);
   el.classList.add("on");
   paintKeys();
@@ -926,7 +931,7 @@ let sliding = false, last = null;
 board.addEventListener("pointerdown", e => {
   const k = e.target.closest(".wkey,.bkey");
   if (!k) return;
-  e.preventDefault();
+  e.preventDefault();                   // no compatibility mouse events after this
   sliding = true; last = k;
   press(k);
 });
@@ -952,10 +957,13 @@ window.addEventListener("keydown", e => {
   if (key) { e.preventDefault(); press(key); }
 });
 
-// keys are buttons, so Enter/Space already focus them — make them sound too
-board.addEventListener("click", e => {
-  if (e.target.closest(".expand")) return;
-  if (e.detail === 0) press(e.target.closest(".wkey,.bkey"));
+// keys are buttons, so Enter and Space reach them through the keyboard
+board.addEventListener("keydown", e => {
+  if (e.key !== "Enter" && e.key !== " ") return;
+  const k = e.target.closest(".wkey,.bkey");
+  if (!k) return;
+  e.preventDefault();
+  press(k);
 });
 
 /* ------------------------- resize: drag or tap ----------------------- */
