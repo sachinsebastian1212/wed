@@ -1,0 +1,15 @@
+Piano samples
+=============
+
+Salamander Grand Piano v3
+Recorded by Alexander Holm from a Yamaha C5, two AKG C414 microphones.
+
+Licensed under the Creative Commons Attribution 3.0 Unported licence:
+https://creativecommons.org/licenses/by/3.0/
+
+Source:  https://github.com/sfzinstruments/SalamanderGrandPiano
+         https://archive.org/details/SalamanderGrandPianoV3
+
+Changes made: a sixteen-note subset (every minor third, C3 to A6) taken
+from the web-optimised set published with Tone.js, trimmed to five
+seconds with a short fade, and re-encoded for the browser.

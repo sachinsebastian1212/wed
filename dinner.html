@@ -151,44 +151,45 @@ body.rack-dragging .rack{width:var(--drag-w);transition:none}
   padding:0;
   cursor:pointer;
   font:inherit;
-  transition:background .18s ease;
+  background:none;
+  -webkit-appearance:none;
+  appearance:none;
+}
+
+/* The keys are painted onto a canvas, not with CSS colours. A phone's
+   forced dark mode rewrites CSS backgrounds — flat ones and gradients alike,
+   which is what kept greying the keyboard out — but it cannot touch pixels
+   already drawn into a canvas. These buttons are invisible; they exist only
+   to catch taps and to carry the geometry the canvas paints from. */
+#keys{
+  position:absolute;
+  left:0;
+  top:0;
+  width:100%;
+  height:100%;
+  display:block;
+  z-index:0;
+  pointer-events:none;
 }
 
 .wkey{
-  forced-color-adjust:none;
   left:0;
   width:100%;
-  /* inset by 2px instead of using borders: the gap is just the dark board
-     showing through, and a phone's dark mode cannot invert a border that
-     isn't there */
   top:calc(var(--i) * var(--kstep) + 2px);
   height:calc(var(--kstep) - 4px);
-  background-color:var(--key);
-  background-image:linear-gradient(var(--key), var(--key));
+  background:none;
   border:0;
-  border-radius:0 3px 3px 0;
-}
-.wkey.on{
-  background-color:var(--key-lit);
-  background-image:linear-gradient(var(--key-lit), var(--key-lit));
-  transition:background 0s;
+  z-index:1;
 }
 
 .bkey{
-  forced-color-adjust:none;
   right:0;
   width:62%;
   top:calc(var(--b) * var(--kstep) - var(--kstep) * .31);
   height:calc(var(--kstep) * .62);
-  background-color:var(--blk);
-  background-image:linear-gradient(var(--blk), var(--blk));
-  border-radius:0 2px 2px 0;
+  background:none;
+  border:0;
   z-index:3;
-}
-.bkey.on{
-  background-color:var(--blk-lit);
-  background-image:linear-gradient(var(--blk-lit), var(--blk-lit));
-  transition:background 0s;
 }
 
 .wkey:focus-visible,.bkey:focus-visible{
@@ -496,7 +497,7 @@ body.keys-open .expand svg{
 .rsvp a{color:var(--linen);text-decoration:none;border-bottom:1px solid var(--rule)}
 
 @media (prefers-reduced-motion:reduce){
-  .hint,.wkey,.bkey,.where,.pin,.rack,.expand,.expand svg{transition:none}
+  .hint,.where,.pin,.rack,.expand,.expand svg{transition:none}
 }
 </style>
 </head>
@@ -510,6 +511,7 @@ body.keys-open .expand svg{
 <div class="stage">
   <div class="rack" id="rack">
     <div class="board" id="board" role="group" aria-label="Playable piano keyboard">
+      <canvas id="keys" aria-hidden="true"></canvas>
       <button class="expand" id="expand" type="button"
               aria-expanded="false" aria-label="Resize the keyboard"
               title="Tap to resize, or drag to hide">
@@ -657,13 +659,124 @@ for (let o = 0; o < octaves; o++) {
   }
 }
 
+/* ---------------------- painting the keys ---------------------------- */
+/* Geometry comes straight from the buttons' own boxes, so the picture can
+   never drift out of line with what a tap actually hits. */
+const keysCv = $("keys");
+const kctx = keysCv.getContext("2d");
+const wkeys = [].slice.call(board.querySelectorAll(".wkey"));
+const bkeys = [].slice.call(board.querySelectorAll(".bkey"));
+
+const IVORY = "#F5EFE4", IVORY_LIT = "#C7B48C";
+const EBONY = "#0B0906", EBONY_LIT = "#3E3220";
+
+function slab(x, y, w, h, r) {
+  if (w <= 0 || h <= 0) return;
+  if (kctx.roundRect) {
+    kctx.beginPath();
+    kctx.roundRect(x, y, w, h, r);
+    kctx.fill();
+  } else {
+    kctx.fillRect(x, y, w, h);
+  }
+}
+
+function paintKeys() {
+  const br = board.getBoundingClientRect();
+  if (br.width < 1 || br.height < 1) return;
+
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const bw = Math.round(br.width * dpr), bh = Math.round(br.height * dpr);
+  if (keysCv.width !== bw || keysCv.height !== bh) {
+    keysCv.width = bw; keysCv.height = bh;
+  }
+  kctx.setTransform(bw / br.width, 0, 0, bh / br.height, 0, 0);
+  kctx.clearRect(0, 0, br.width, br.height);
+
+  const deck = isDeck();
+  const wr = deck ? [0, 0, 3, 3] : [0, 3, 3, 0];
+  const br_ = deck ? [0, 0, 2, 2] : [0, 2, 2, 0];
+
+  for (const el of wkeys) {
+    const r = el.getBoundingClientRect();
+    kctx.fillStyle = el.classList.contains("on") ? IVORY_LIT : IVORY;
+    slab(r.left - br.left, r.top - br.top, r.width, r.height, wr);
+  }
+  for (const el of bkeys) {
+    const r = el.getBoundingClientRect();
+    kctx.fillStyle = el.classList.contains("on") ? EBONY_LIT : EBONY;
+    slab(r.left - br.left, r.top - br.top, r.width, r.height, br_);
+  }
+}
+
+paintKeys();
+// fires every frame while the rack transitions, so the picture keeps up
+if (typeof ResizeObserver === "function") new ResizeObserver(paintKeys).observe(board);
+else addEventListener("resize", paintKeys);
+addEventListener("resize", paintKeys);
+addEventListener("orientationchange", () => setTimeout(paintKeys, 120));
+
 /* -------------------------------- sound ------------------------------ */
-let ctx = null;
+/* Real piano if the samples are there, synthesis if they aren't. The page
+   works either way: nothing waits on the network, and the synth keeps
+   playing until the buffers have decoded.
+
+   Samples: Salamander Grand Piano v3 by Alexander Holm (Yamaha C5),
+   CC BY 3.0 — https://creativecommons.org/licenses/by/3.0/
+   Trimmed to five seconds each for the web. Keep piano/CREDITS.txt
+   alongside them; the licence asks for attribution. */
+const PIANO_DIR = "piano/";
+const PIANO_MAP = { 48: "C3", 51: "Ds3", 54: "Fs3", 57: "A3",
+                    60: "C4", 63: "Ds4", 66: "Fs4", 69: "A4",
+                    72: "C5", 75: "Ds5", 78: "Fs5", 81: "A5",
+                    84: "C6", 87: "Ds6", 90: "Fs6", 93: "A6" };
+const PIANO_KEYS = Object.keys(PIANO_MAP).map(Number);
+
+let ctx = null, piano = null, pianoTried = false;
 const freq = m => 440 * Math.pow(2, (m - 69) / 12);
 
-function strike(midi) {
+function audio() {
   if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
   if (ctx.state === "suspended") ctx.resume();
+  if (!pianoTried) { pianoTried = true; loadPiano(); }
+  return ctx;
+}
+
+function loadPiano() {
+  const got = {};
+  let left = PIANO_KEYS.length, ok = true;
+  for (const midi of PIANO_KEYS) {
+    fetch(PIANO_DIR + PIANO_MAP[midi] + ".mp3")
+      .then(r => r.ok ? r.arrayBuffer() : Promise.reject(r.status))
+      .then(a => ctx.decodeAudioData(a))
+      .then(buf => { got[midi] = buf; })
+      .catch(() => { ok = false; })          // no samples: stay on the synth
+      .then(() => { if (--left === 0 && ok) piano = got; });
+  }
+}
+
+// nearest sampled note, then pitch-shifted to the one we want
+function sampled(midi, level, len) {
+  let near = PIANO_KEYS[0];
+  for (const k of PIANO_KEYS) {
+    if (Math.abs(k - midi) < Math.abs(near - midi)) near = k;
+  }
+  const t = ctx.currentTime;
+  const src = ctx.createBufferSource();
+  src.buffer = piano[near];
+  src.playbackRate.value = Math.pow(2, (midi - near) / 12);
+
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(level, t);
+  g.gain.setValueAtTime(level, t + len * 0.55);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + len);   // damp the tail
+  src.connect(g); g.connect(ctx.destination);
+  src.start(t); src.stop(t + len + 0.1);
+}
+
+function strike(midi) {
+  audio();
+  if (piano) return sampled(midi, 1.5, 3.4);
 
   const t = ctx.currentTime;
   const f = freq(midi);
@@ -690,38 +803,112 @@ function strike(midi) {
   });
 }
 
-/* a gentle bell for the drawing trail, pitched by how high up the card it is */
-const PENTA = [0, 2, 4, 7, 9];         // C D E G A — nothing can sound wrong
+/* ------------------- the chord run under the drawing ----------------- */
+/* Taken from the reference MIDI rather than from listening: an eighth-note
+   ostinato at 120bpm — a long low root on the downbeat, then the root and
+   the fifth below it trading places, with the third or the octave dropped in
+   now and then for colour. The notes ring on well past the next one, which
+   is what makes it sound denser than the sixteen notes a bar it really is. */
+const CHORDS = [
+  { name: "C",    root: 0,  third: 4, dim: false },
+  { name: "F",    root: 5,  third: 4, dim: false },
+  { name: "Bb",   root: 10, third: 4, dim: false },
+  { name: "Bdim", root: 11, third: 3, dim: true  },
+  { name: "Em",   root: 4,  third: 3, dim: false },
+  { name: "Am",   root: 9,  third: 3, dim: false },
+  { name: "Dm",   root: 2,  third: 3, dim: false },
+  { name: "G",    root: 7,  third: 4, dim: false }
+];
+const BEAT = 250;                      // ms per eighth at 120bpm
+const TRAVEL = 90;                     // px of finger travel per chord change
 
-function chime(vy, top, height) {
-  if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
-  if (ctx.state === "suspended") ctx.resume();
+let chordAt = 0;
 
-  const up = 1 - Math.min(1, Math.max(0, (vy - top) / (height || 1)));
-  const step = Math.round(up * 14);    // three octaves of the scale
-  const midi = 60 + Math.floor(step / 5) * 12 + PENTA[step % 5];
+function voice(midi, peak, len) {
+  audio();
+  // the samples sit at about a quarter of full scale, so they need lifting
+  // to sit where the synth's peak levels were
+  if (piano) return sampled(midi, peak * 5.2, len);
 
   const t = ctx.currentTime;
   const f = freq(midi);
   const out = ctx.createGain();
   out.connect(ctx.destination);
   out.gain.setValueAtTime(0.0001, t);
-  out.gain.exponentialRampToValueAtTime(0.085, t + 0.02);
-  out.gain.exponentialRampToValueAtTime(0.0001, t + 1.7);
+  out.gain.exponentialRampToValueAtTime(peak, t + 0.016);
+  out.gain.exponentialRampToValueAtTime(peak * 0.34, t + 0.22);
+  out.gain.exponentialRampToValueAtTime(0.0001, t + len);
 
-  [[1, .72], [2, .17], [3.01, .06]].forEach(([h, amp]) => {
+  [[1, .74], [2, .26], [3, .1], [4.2, .04]].forEach(([h, amp]) => {
     const osc = ctx.createOscillator();
     const g = ctx.createGain();
     osc.type = "sine";
     osc.frequency.value = f * h;
     g.gain.setValueAtTime(amp, t);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 1.7 / h);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + len / Math.sqrt(h));
     osc.connect(g); g.connect(out);
-    osc.start(t); osc.stop(t + 1.8);
+    osc.start(t); osc.stop(t + len + 0.1);
   });
 }
 
-/* ------------------------------ interaction -------------------------- */
+/* The run keeps going for as long as the finger is down, whether or not it
+   is moving. Holding still repeats the bar; travelling turns the chord over
+   on the next beat, so a change always lands in time. */
+let pulse = 0, beatAt = 0, holdY = 0, travelled = 0, queued = -1;
+
+function octaveShift() {
+  const box = panel.getBoundingClientRect();
+  const up = 1 - Math.min(1, Math.max(0, (holdY - box.top) / (box.height || 1)));
+  return up > .55 ? 12 : 0;            // higher up the card plays an octave up
+}
+
+function beat() {
+  if (!inking) { pulse = 0; return; }
+
+  let downbeat = beatAt === 0;
+  if (queued >= 0) {                   // a queued change restarts the bar
+    chordAt = queued;
+    queued = -1;
+    beatAt = 0;
+    downbeat = true;
+  }
+
+  const c = CHORDS[chordAt];
+  const up = 60 + c.root + octaveShift();   // the root in the middle register
+  const fifth = up - (c.dim ? 6 : 5);       // the fifth, sitting below it
+
+  if (downbeat) {
+    voice(up - 12, .055, 2.2);         // long low root under the bar
+    voice(up, .062, 1.3);
+  } else if (beatAt === 2) {
+    const r = Math.random();
+    if (r < .22)      voice(up + c.third, .058, 1.5);   // the third, as colour
+    else if (r < .34) { voice(up, .05, 1.2); voice(up + 12, .03, .8); }
+    else              voice(up, .06, 1.2);
+  } else {
+    voice(fifth, .07, 1.2);
+  }
+
+  beatAt = (beatAt + 1) % 4;
+  pulse = setTimeout(beat, BEAT);
+}
+
+function startRun(vy) {
+  holdY = vy;
+  travelled = 0;
+  chordAt = 0;                         // every stroke opens on C
+  queued = -1;
+  beatAt = 0;
+  clearTimeout(pulse);
+  beat();
+}
+
+function stopRun() {
+  clearTimeout(pulse);
+  pulse = 0;
+}
+
+/* ------------------------------ interaction -------------------------- *//* ------------------------------ interaction -------------------------- */
 const hint = $("hint");
 let hinted = false;
 
@@ -729,7 +916,8 @@ function press(el) {
   if (!el || !el.dataset.midi) return;
   strike(+el.dataset.midi);
   el.classList.add("on");
-  setTimeout(() => el.classList.remove("on"), 160);
+  paintKeys();
+  setTimeout(() => { el.classList.remove("on"); paintKeys(); }, 160);
   if (!hinted) { hinted = true; hint.classList.add("gone"); }
 }
 
@@ -781,8 +969,9 @@ const probeB = $("probeB");
 const STATES = ["hidden", "default", "open"];
 let state = "hidden";
 
-const isDeck = () =>
-  matchMedia("(orientation:landscape) and (max-height:620px)").matches;
+function isDeck() {
+  return matchMedia("(orientation:landscape) and (max-height:620px)").matches;
+}
 
 // resolved pixel sizes for the three stops, re-read each time so they stay
 // right after a resize or a rotation
@@ -1015,6 +1204,7 @@ panel.addEventListener("pointerdown", e => {
   if (isDeck() && e.pointerType === "touch") return;
   sizeTrail();                          // re-read the box before the first mark
   inking = true; px = e.clientX - ox; py = e.clientY - oy;
+  startRun(e.clientY);                  // every stroke starts on the C chord
 });
 
 addEventListener("pointermove", e => {
@@ -1029,8 +1219,17 @@ addEventListener("pointermove", e => {
   if (segs.length > 700) segs.splice(0, segs.length - 700);
   px = x; py = y;
 
+  holdY = e.clientY;
+  travelled += d;
+  if (travelled >= TRAVEL) {            // moved far enough — line up the next chord
+    travelled = 0;
+    queued = (((queued < 0 ? chordAt : queued) + 1) % CHORDS.length);
+  }
+
   const now = performance.now();
-  if (now - lastNote > 170 && Math.random() < .55) {
+
+  // the drifting glyphs are much sparser than the notes
+  if (now - lastNote > 210 && Math.random() < .6) {
     lastNote = now;
     notes.push({
       x: x, y: y, t: now,
@@ -1044,15 +1243,12 @@ addEventListener("pointermove", e => {
       g: GLYPHS[(Math.random() * GLYPHS.length) | 0]
     });
     if (notes.length > 40) notes.shift();
-
-    const card = panel.getBoundingClientRect();
-    chime(y + oy, card.top, card.height);
   }
 
   if (!loop) loop = requestAnimationFrame(frame);
 }, { passive: true });
 
-const stopInk = () => { inking = false; };
+const stopInk = () => { inking = false; stopRun(); };
 addEventListener("pointerup", stopInk);
 addEventListener("pointercancel", stopInk);
 
