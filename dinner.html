@@ -1010,7 +1010,7 @@ const probeA = $("probeA");
 const probeB = $("probeB");
 
 const STATES = ["hidden", "default", "open"];
-let state = "hidden";
+let state = "default";
 
 function isDeck() {
   return matchMedia("(orientation:landscape) and (max-height:620px)").matches;
@@ -1139,7 +1139,7 @@ rack.addEventListener("transitionend", e => {
 });
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitCard);
 fitCard();
-setState("hidden");        // the card comes first; the keys wait behind the arrow
+setState("default");       // the keys show from the start, or nobody finds them
 
 /* ----------------------- draw on the card ---------------------------- */
 /* Press and drag anywhere on the card and it takes a brass mark that fades
