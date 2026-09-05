@@ -518,6 +518,41 @@ body.keys-open .expand .bar{opacity:1;transform:translateX(0)}
 }
 .todo code{font-family:ui-monospace,monospace;color:var(--candle)}
 
+/* shows once the music has been left running on its own */
+.playing{
+  position:absolute;
+  left:50%;
+  bottom:clamp(16px,3.2vh,34px);
+  transform:translateX(-50%);
+  display:flex;
+  align-items:flex-end;
+  gap:4px;
+  height:20px;
+  opacity:0;
+  z-index:4;
+  pointer-events:none;
+  transition:opacity .6s ease;
+}
+body.playing-on .playing{opacity:1}
+.playing span{
+  width:3px;
+  height:100%;
+  border-radius:2px;
+  background-color:var(--brass);
+  background-image:linear-gradient(var(--candle), var(--brass));
+  transform-origin:bottom center;
+  transform:scaleY(.3);
+  animation:eq 1.05s ease-in-out infinite;
+}
+.playing span:nth-child(2){animation-duration:.78s;animation-delay:-.2s}
+.playing span:nth-child(3){animation-duration:1.24s;animation-delay:-.5s}
+.playing span:nth-child(4){animation-duration:.9s;animation-delay:-.34s}
+.playing span:nth-child(5){animation-duration:1.4s;animation-delay:-.72s}
+@keyframes eq{
+  0%,100%{transform:scaleY(.28)}
+  50%    {transform:scaleY(1)}
+}
+
 .rsvp{
   margin-top:clamp(15px,2.8vh,34px);
   font-family:var(--util);
@@ -531,6 +566,7 @@ body.keys-open .expand .bar{opacity:1;transform:translateX(0)}
 
 @media (prefers-reduced-motion:reduce){
   .hint,.where,.pin,.rack,.expand,.expand svg,.expand .bar{transition:none}
+  .playing span{animation:none;transform:scaleY(.6)}
 }
 </style>
 </head>
@@ -591,6 +627,9 @@ body.keys-open .expand .bar{opacity:1;transform:translateX(0)}
       </a>
 
       <p class="rsvp" id="rsvp"></p>
+    </div>
+    <div class="playing" id="playing" aria-hidden="true">
+      <span></span><span></span><span></span><span></span><span></span>
     </div>
   </main>
 </div>
@@ -998,6 +1037,47 @@ function stopSong() {
   songTimer = 0;
 }
 
+/* Hold the card for five seconds and the music is left running when the
+   finger comes off — a second later the bars appear to say so. Two fingers
+   put it back down, keeping its place in the piece. */
+const LATCH = 5000;                    // ms of holding before it keeps going
+
+let latched = false, heldFrom = 0, showTimer = 0, driftTimer = 0;
+
+function showPlaying() {
+  document.body.classList.add("playing-on");
+  drift();
+}
+
+function unlatch() {
+  latched = false;
+  clearTimeout(showTimer);
+  clearTimeout(driftTimer);
+  showTimer = driftTimer = 0;
+  document.body.classList.remove("playing-on");
+}
+
+// notes wandering up the card while it plays by itself
+function drift() {
+  const card = panel.getBoundingClientRect();
+  notes.push({
+    x: card.left - ox + 40 + Math.random() * Math.max(40, card.width - 80),
+    y: card.bottom - oy - 24,
+    t: performance.now(),
+    life: 2600 + Math.random() * 1000,
+    size: 18 + Math.random() * 12,
+    rise: card.height * 0.55,
+    sway: 8 + Math.random() * 11,
+    phase: Math.random() * 6.28,
+    tilt: (Math.random() - .5) * .5,
+    spin: (Math.random() - .5) * .6,
+    g: GLYPHS[(Math.random() * GLYPHS.length) | 0]
+  });
+  if (notes.length > 40) notes.shift();
+  if (!loop) loop = requestAnimationFrame(frame);
+  driftTimer = setTimeout(drift, 620 + Math.random() * 620);
+}
+
 /* The run keeps going for as long as the finger is down, whether or not it
    is moving. Holding still repeats the bar; travelling turns the chord over
    on the next beat, so a change always lands in time. */
@@ -1355,18 +1435,36 @@ function frame() {
   tctx.clearRect(0, 0, cw, ch);
 }
 
-/* One finger plays the MIDI, two fall back to the chord pattern — so the
-   second finger going down has to hand over from one to the other. */
+/* One finger plays the MIDI, two pause it and give you the chord pattern,
+   three send it back to the beginning. Change RESET_FINGERS to 4 if you'd
+   rather use four; three would then behave like one. */
+const RESET_FINGERS = 3;
 const fingers = new Set();
+let settle = 0;
 
 function playFor(count, vy) {
-  if (count >= 2 || !song) {
-    stopSong();
+  if (!song || count === 2) {
+    stopSong();                        // two fingers pause it where it stands
+    unlatch();
     if (!pulse) startRun(vy);
+  } else if (count >= RESET_FINGERS) {
+    stopRun();
+    unlatch();                         // a fresh start has to earn its latch again
+    stopSong();
+    songAt = 0;
+    startSong();
   } else {
     stopRun();
-    startSong();
+    if (!songTimer) startSong();       // already running? leave it alone
   }
+}
+
+/* Fingers of a multi-touch never land in the same instant, so the decision
+   waits a moment for them all to arrive. Otherwise a three-finger tap would
+   audibly pass through the two-finger case on its way. */
+function decide(vy) {
+  clearTimeout(settle);
+  settle = setTimeout(() => playFor(fingers.size, vy), 90);
 }
 
 panel.addEventListener("pointerdown", e => {
@@ -1374,11 +1472,12 @@ panel.addEventListener("pointerdown", e => {
   // the deck layout scrolls, so a finger there belongs to the page, not the pen
   if (isDeck() && e.pointerType === "touch") return;
 
+  if (!fingers.size) heldFrom = performance.now();
   fingers.add(e.pointerId);
   sizeTrail();                          // re-read the box before the first mark
   inking = true; px = e.clientX - ox; py = e.clientY - oy;
   holdY = e.clientY;
-  playFor(fingers.size, e.clientY);
+  decide(e.clientY);
 });
 
 addEventListener("pointermove", e => {
@@ -1426,9 +1525,18 @@ function stopInk(e) {
   if (e && e.pointerId !== undefined) fingers.delete(e.pointerId);
   else fingers.clear();
   if (fingers.size) return;             // still a finger down
+  clearTimeout(settle);
   inking = false;
   stopRun();
-  stopSong();
+
+  const held = performance.now() - heldFrom;
+  if (song && songTimer && held >= LATCH) {
+    latched = true;                     // long enough: let the music carry on
+    clearTimeout(showTimer);
+    showTimer = setTimeout(showPlaying, 1000);
+  } else if (!latched) {
+    stopSong();
+  }
 }
 addEventListener("pointerup", stopInk);
 addEventListener("pointercancel", stopInk);
