@@ -17,9 +17,9 @@
 <meta property="og:site_name"        content="Sachin &amp; Kesia">
 <meta property="og:title"            content="Sachin &amp; Kesia — Dinner">
 <meta property="og:description"      content="Carmel Hall, Varapuzha. Saturday, 12 September 2026.">
-<meta property="og:url"              content="https://sachinsebastian1212.github.io/wed/dinner.html">
-<meta property="og:image"            content="https://sachinsebastian1212.github.io/wed/og-dinner.jpg">
-<meta property="og:image:secure_url" content="https://sachinsebastian1212.github.io/wed/og-dinner.jpg">
+<meta property="og:url"              content="https://SITE_BASE/">
+<meta property="og:image"            content="https://SITE_BASE/og-dinner.jpg">
+<meta property="og:image:secure_url" content="https://SITE_BASE/og-dinner.jpg">
 <meta property="og:image:type"       content="image/jpeg">
 <meta property="og:image:width"      content="1080">
 <meta property="og:image:height"     content="1350">
@@ -983,10 +983,11 @@ function readMidi(buf) {
   const events = [];                                   // ticks, then to seconds
   const tempos = [[0, 500000]];
 
-  for (let t = 0; t < tracks && p < b.length; t++) {
+  for (let t = 0; t < tracks && p + 8 <= b.length; t++) {
     if (v.getUint32(p) !== 0x4d54726b) break;           // "MTrk"
     p += 4;
-    const end = p + u32() + 4 - 4;
+    const len = u32();
+    const end = p + len;                                // data starts at p
     let tick = 0, status = 0;
     const held = {};
     while (p < end) {
@@ -1016,6 +1017,7 @@ function readMidi(buf) {
         }
       }
     }
+    p = end;                            // resync, whatever the track left behind
   }
   if (!events.length) return null;
 
@@ -1031,9 +1033,19 @@ function readMidi(buf) {
     return sec + (tk - prev) * us / 1e6 / division;
   };
 
-  events.sort((a, b2) => a.tick - b2.tick);
-  const zero = at(events[0].tick);                     // ignore any lead-in
-  return events.map(e => ({
+  events.sort((a, b2) => a.tick - b2.tick || a.midi - b2.midi);
+
+  // exports often carry the same part on two tracks (one per instrument);
+  // sounding both just doubles every note, so keep one of each
+  const once = [];
+  for (const e of events) {
+    const prev = once[once.length - 1];
+    if (prev && prev.tick === e.tick && prev.midi === e.midi) continue;
+    once.push(e);
+  }
+
+  const zero = at(once[0].tick);                       // ignore any lead-in
+  return once.map(e => ({
     t: at(e.tick) - zero,
     d: at(e.tick + e.dur) - at(e.tick),
     midi: e.midi,
