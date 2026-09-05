@@ -791,12 +791,12 @@ function loadPiano() {
 }
 
 // nearest sampled note, then pitch-shifted to the one we want
-function sampled(midi, level, len) {
+function sampled(midi, level, len, when) {
   let near = PIANO_KEYS[0];
   for (const k of PIANO_KEYS) {
     if (Math.abs(k - midi) < Math.abs(near - midi)) near = k;
   }
-  const t = ctx.currentTime;
+  const t = when || ctx.currentTime;
   const src = ctx.createBufferSource();
   src.buffer = piano[near];
   src.playbackRate.value = Math.pow(2, (midi - near) / 12);
@@ -859,13 +859,13 @@ const TRAVEL = 90;                     // px of finger travel per chord change
 
 let chordAt = 0;
 
-function voice(midi, peak, len) {
+function voice(midi, peak, len, when) {
   audio();
   // the samples sit at about a quarter of full scale, so they need lifting
   // to sit where the synth's peak levels were
-  if (piano) return sampled(midi, peak * 5.2, len);
+  if (piano) return sampled(midi, peak * 5.2, len, when);
 
-  const t = ctx.currentTime;
+  const t = when || ctx.currentTime;
   const f = freq(midi);
   const out = ctx.createGain();
   out.connect(ctx.destination);
@@ -884,6 +884,118 @@ function voice(midi, peak, len) {
     osc.connect(g); g.connect(out);
     osc.start(t); osc.stop(t + len + 0.1);
   });
+}
+
+/* ----------------------- playing a MIDI file ------------------------- */
+/* Drop a .mid beside the page and one finger held on the card plays it.
+   Two fingers fall back to the chord pattern above. If the file isn't
+   there, the pattern is all you get and nothing breaks. */
+const MIDI_FILE = "song.mid";
+
+let song = null, songAt = 0, songClock = 0, songTimer = 0;
+
+// enough of the format to read note on/off and tempo out of a type 0 or 1 file
+function readMidi(buf) {
+  const v = new DataView(buf), b = new Uint8Array(buf);
+  let p = 0;
+  const u32 = () => { const n = v.getUint32(p); p += 4; return n; };
+  const u16 = () => { const n = v.getUint16(p); p += 2; return n; };
+  const vlq = () => { let n = 0, c; do { c = b[p++]; n = (n << 7) | (c & 0x7f); } while (c & 0x80); return n; };
+
+  if (v.getUint32(0) !== 0x4d546864) return null;      // "MThd"
+  p = 4;
+  const head = u32(); p += 2;
+  const tracks = u16(), division = u16();
+  p = 8 + head;
+
+  const events = [];                                   // ticks, then to seconds
+  const tempos = [[0, 500000]];
+
+  for (let t = 0; t < tracks && p < b.length; t++) {
+    if (v.getUint32(p) !== 0x4d54726b) break;           // "MTrk"
+    p += 4;
+    const end = p + u32() + 4 - 4;
+    let tick = 0, status = 0;
+    const held = {};
+    while (p < end) {
+      tick += vlq();
+      let s = b[p];
+      if (s & 0x80) { status = s; p++; } else { s = status; }
+      const kind = status & 0xf0;
+
+      if (status === 0xff) {
+        const meta = b[p++], len = vlq();
+        if (meta === 0x51) tempos.push([tick, (b[p] << 16) | (b[p + 1] << 8) | b[p + 2]]);
+        p += len;
+      } else if (status === 0xf0 || status === 0xf7) {
+        p += vlq();
+      } else if (kind === 0xc0 || kind === 0xd0) {
+        p += 1;
+      } else {
+        const n = b[p], vel = b[p + 1]; p += 2;
+        if (kind === 0x90 && vel > 0) {
+          (held[n] = held[n] || []).push([tick, vel]);
+        } else if (kind === 0x80 || kind === 0x90) {
+          const q = held[n];
+          if (q && q.length) {
+            const [start, vv] = q.shift();
+            events.push({ tick: start, dur: tick - start, midi: n, vel: vv });
+          }
+        }
+      }
+    }
+  }
+  if (!events.length) return null;
+
+  // walk the tempo map so a file with tempo changes still lines up
+  tempos.sort((a, b2) => a[0] - b2[0]);
+  const at = tk => {
+    let sec = 0, prev = 0, us = tempos[0][1];
+    for (const [tt, uu] of tempos) {
+      if (tt >= tk) break;
+      sec += (tt - prev) * us / 1e6 / division;
+      prev = tt; us = uu;
+    }
+    return sec + (tk - prev) * us / 1e6 / division;
+  };
+
+  events.sort((a, b2) => a.tick - b2.tick);
+  const zero = at(events[0].tick);                     // ignore any lead-in
+  return events.map(e => ({
+    t: at(e.tick) - zero,
+    d: at(e.tick + e.dur) - at(e.tick),
+    midi: e.midi,
+    vel: e.vel
+  }));
+}
+
+fetch(MIDI_FILE)
+  .then(r => r.ok ? r.arrayBuffer() : Promise.reject(r.status))
+  .then(a => { song = readMidi(a); })
+  .catch(() => { song = null; });                      // no file: use the pattern
+
+function songBeat() {
+  const ahead = ctx.currentTime + 0.3;                 // schedule a little early
+  while (songAt < song.length && songClock + song[songAt].t < ahead) {
+    const n = song[songAt++];
+    const level = 0.06 + (n.vel / 127) * 0.5;
+    voice(n.midi, level, Math.max(1, Math.min(3, n.d + 1.2)), songClock + n.t);
+  }
+  if (songAt >= song.length) { songAt = 0; songClock = ctx.currentTime + 0.4; }
+  songTimer = setTimeout(songBeat, 70);
+}
+
+function startSong() {
+  audio();
+  if (songAt >= song.length) songAt = 0;
+  songClock = ctx.currentTime + 0.05 - song[songAt].t;  // carry on where it left off
+  clearTimeout(songTimer);
+  songBeat();
+}
+
+function stopSong() {
+  clearTimeout(songTimer);
+  songTimer = 0;
 }
 
 /* The run keeps going for as long as the finger is down, whether or not it
@@ -1243,13 +1355,30 @@ function frame() {
   tctx.clearRect(0, 0, cw, ch);
 }
 
+/* One finger plays the MIDI, two fall back to the chord pattern — so the
+   second finger going down has to hand over from one to the other. */
+const fingers = new Set();
+
+function playFor(count, vy) {
+  if (count >= 2 || !song) {
+    stopSong();
+    if (!pulse) startRun(vy);
+  } else {
+    stopRun();
+    startSong();
+  }
+}
+
 panel.addEventListener("pointerdown", e => {
   if (calm.matches || drag) return;
   // the deck layout scrolls, so a finger there belongs to the page, not the pen
   if (isDeck() && e.pointerType === "touch") return;
+
+  fingers.add(e.pointerId);
   sizeTrail();                          // re-read the box before the first mark
   inking = true; px = e.clientX - ox; py = e.clientY - oy;
-  startRun(e.clientY);                  // every stroke starts on the C chord
+  holdY = e.clientY;
+  playFor(fingers.size, e.clientY);
 });
 
 addEventListener("pointermove", e => {
@@ -1293,7 +1422,14 @@ addEventListener("pointermove", e => {
   if (!loop) loop = requestAnimationFrame(frame);
 }, { passive: true });
 
-const stopInk = () => { inking = false; stopRun(); };
+function stopInk(e) {
+  if (e && e.pointerId !== undefined) fingers.delete(e.pointerId);
+  else fingers.clear();
+  if (fingers.size) return;             // still a finger down
+  inking = false;
+  stopRun();
+  stopSong();
+}
 addEventListener("pointerup", stopInk);
 addEventListener("pointercancel", stopInk);
 
