@@ -303,6 +303,12 @@ body.keys-open .expand .bar{opacity:1;transform:translateX(0)}
   body .panel{padding-bottom:calc(var(--deck) + 34px);touch-action:auto}
   body.keys-open .panel{padding-bottom:calc(var(--deck-x) + 34px)}
 
+  /* the card scrolls in this layout, so the stop button pins to the viewport
+     and rides just above the keys instead of sitting at the card's foot */
+  body .playing{position:fixed;bottom:calc(var(--deck) + 14px)}
+  body.keys-open .playing{bottom:calc(var(--deck-x) + 14px)}
+  body.keys-hidden .playing{bottom:14px}
+
   /* the deck at full height leaves only a sliver of card, so keep the names */
   body.keys-open .hint,
   body.keys-open .eyebrow,
@@ -518,36 +524,61 @@ body.keys-open .expand .bar{opacity:1;transform:translateX(0)}
 }
 .todo code{font-family:ui-monospace,monospace;color:var(--candle)}
 
-/* shows once the music has been left running on its own */
+/* Appears once the music has been left running on its own, and stops it. */
 .playing{
   position:absolute;
   left:50%;
-  bottom:clamp(16px,3.2vh,34px);
-  transform:translateX(-50%);
+  bottom:clamp(14px,3vh,32px);
+  transform:translateX(-50%) translateY(6px);
   display:flex;
-  align-items:flex-end;
-  gap:4px;
-  height:20px;
+  align-items:center;
+  gap:11px;
+  padding:9px 16px 9px 13px;
+  border:1px solid var(--rule);
+  border-radius:999px;
+  background:rgba(22,15,8,.86);
+  -webkit-backdrop-filter:blur(6px);
+  backdrop-filter:blur(6px);
+  font-family:var(--util);
+  font-weight:300;
+  font-size:.64rem;
+  letter-spacing:.24em;
+  text-transform:uppercase;
+  color:var(--linen);
+  cursor:pointer;
   opacity:0;
-  z-index:4;
-  pointer-events:none;
-  transition:opacity .6s ease;
+  visibility:hidden;
+  z-index:5;
+  transition:opacity .6s ease, transform .6s ease, border-color .2s ease, background .2s ease;
 }
-body.playing-on .playing{opacity:1}
-.playing span{
-  width:3px;
+body.playing-on .playing{
+  opacity:1;
+  visibility:visible;
+  transform:translateX(-50%) translateY(0);
+}
+.playing:hover,.playing:focus-visible{
+  border-color:rgba(201,149,74,.62);
+  background:rgba(38,26,12,.9);
+}
+.playing:focus-visible{outline:2px solid var(--candle);outline-offset:3px}
+
+.eq{display:flex;align-items:flex-end;gap:3px;height:15px}
+.eq i{
+  width:2.5px;
   height:100%;
   border-radius:2px;
   background-color:var(--brass);
   background-image:linear-gradient(var(--candle), var(--brass));
   transform-origin:bottom center;
   transform:scaleY(.3);
-  animation:eq 1.05s ease-in-out infinite;
 }
-.playing span:nth-child(2){animation-duration:.78s;animation-delay:-.2s}
-.playing span:nth-child(3){animation-duration:1.24s;animation-delay:-.5s}
-.playing span:nth-child(4){animation-duration:.9s;animation-delay:-.34s}
-.playing span:nth-child(5){animation-duration:1.4s;animation-delay:-.72s}
+/* the bars only move while the music is actually playing; a hidden element
+   still runs its animation otherwise, for nothing */
+body.playing-on .eq i{animation:eq 1.05s ease-in-out infinite}
+body.playing-on .eq i:nth-child(2){animation-duration:.78s;animation-delay:-.2s}
+body.playing-on .eq i:nth-child(3){animation-duration:1.24s;animation-delay:-.5s}
+body.playing-on .eq i:nth-child(4){animation-duration:.9s;animation-delay:-.34s}
+body.playing-on .eq i:nth-child(5){animation-duration:1.4s;animation-delay:-.72s}
 @keyframes eq{
   0%,100%{transform:scaleY(.28)}
   50%    {transform:scaleY(1)}
@@ -566,7 +597,8 @@ body.playing-on .playing{opacity:1}
 
 @media (prefers-reduced-motion:reduce){
   .hint,.where,.pin,.rack,.expand,.expand svg,.expand .bar{transition:none}
-  .playing span{animation:none;transform:scaleY(.6)}
+  .playing{transition:none}
+  body.playing-on .eq i{animation:none;transform:scaleY(.6)}
 }
 </style>
 </head>
@@ -628,9 +660,10 @@ body.playing-on .playing{opacity:1}
 
       <p class="rsvp" id="rsvp"></p>
     </div>
-    <div class="playing" id="playing" aria-hidden="true">
-      <span></span><span></span><span></span><span></span><span></span>
-    </div>
+    <button class="playing" id="playing" type="button" aria-label="Stop the music">
+      <span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+      Stop
+    </button>
   </main>
 </div>
 
@@ -1048,6 +1081,15 @@ function showPlaying() {
   document.body.classList.add("playing-on");
   drift();
 }
+
+/* the button only exists while the music is playing on its own */
+const stopBtn = $("playing");
+stopBtn.addEventListener("pointerdown", e => e.stopPropagation());
+stopBtn.addEventListener("click", e => {
+  e.stopPropagation();
+  stopSong();
+  unlatch();
+});
 
 function unlatch() {
   latched = false;
