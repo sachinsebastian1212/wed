@@ -588,31 +588,52 @@ body.keys-open .expand .bar{opacity:1;transform:translateX(0)}
 /* ---- the envelope ---- */
 /* Boxes and clip-paths rather than the one SVG this used to be: the flap
    has to turn on a real 3D axis, and a transformed group inside an SVG
-   cannot take the perspective from its parent. */
+   cannot take the perspective from its parent.
+
+   Four flaps, not two. A top triangle and a faint inner seam on a charcoal
+   rectangle read as an X on a dark phone; four faces with different values
+   read as folded paper. The meeting point is hardcoded (not a custom
+   property) so clip-path cannot miss it on older Samsung Internet. */
 .env{
   position:relative;
-  width:clamp(190px,54vw,300px);
+  width:clamp(220px,70vw,320px);
   aspect-ratio:300/210;
   perspective:900px;
+  filter:drop-shadow(0 18px 40px rgba(0,0,0,.72));
 }
 
 .env-body{
   position:absolute;
   inset:0;
-  overflow:hidden;
-  border:1px solid var(--ivory-10);
-  border-radius:3px;
-  background:linear-gradient(170deg, #3a3636 0%, #262222 100%);
-  box-shadow:0 24px 64px rgba(0,0,0,.8);
+  border-radius:4px;
+  background:#2a2726;
+  box-shadow:
+    0 0 0 1px rgba(244,240,232,.38),
+    inset 0 1px 0 rgba(244,240,232,.14);
 }
-/* the seam where the two lower flaps meet on the inside */
-.env-body::after{
-  content:"";
+
+.env-l,.env-r,.env-b{
   position:absolute;
-  left:0;right:0;bottom:0;
-  height:55%;
-  background:linear-gradient(to top, var(--ivory-06), transparent);
-  clip-path:polygon(0 100%, 50% 0, 100% 100%);
+  inset:0;
+  pointer-events:none;
+}
+.env-l{
+  z-index:2;
+  background:linear-gradient(125deg, #7a746f 0%, #5a5551 100%);
+  clip-path:polygon(0 0, 50% 52%, 0 100%);
+  -webkit-clip-path:polygon(0 0, 50% 52%, 0 100%);
+}
+.env-r{
+  z-index:2;
+  background:linear-gradient(235deg, #4e4a47 0%, #353230 100%);
+  clip-path:polygon(100% 0, 50% 52%, 100% 100%);
+  -webkit-clip-path:polygon(100% 0, 50% 52%, 100% 100%);
+}
+.env-b{
+  z-index:3;
+  background:linear-gradient(to top, #3f3b38 0%, #615c58 100%);
+  clip-path:polygon(0 100%, 50% 52%, 100% 100%);
+  -webkit-clip-path:polygon(0 100%, 50% 52%, 100% 100%);
 }
 
 .env-card{
@@ -628,14 +649,14 @@ body.keys-open .expand .bar{opacity:1;transform:translateX(0)}
   justify-content:center;
   gap:.26em;
   overflow:hidden;
-  border:1px solid var(--ivory-10);
+  border:1px solid var(--ivory-20);
   border-radius:2px;
-  background:linear-gradient(180deg, #3a3838 0%, #252323 60%, #111010 100%);
+  background:linear-gradient(180deg, #4a4644 0%, #2c2a29 60%, #1a1918 100%);
   box-shadow:0 -8px 28px rgba(0,0,0,.5);
   opacity:0;
   font-family:var(--display);
   font-size:clamp(15px,4.4vw,25px);
-  color:var(--ivory-45);
+  color:var(--ivory-72);
   white-space:nowrap;
 }
 .env-card .amp-sm{font-style:italic;color:var(--brass)}
@@ -643,13 +664,17 @@ body.keys-open .expand .bar{opacity:1;transform:translateX(0)}
 .env-flap{
   position:absolute;
   top:0;left:0;right:0;
-  height:54%;
+  height:52%;
   z-index:10;
-  background:linear-gradient(155deg, #333030 0%, #201d1d 100%);
+  background:
+    linear-gradient(to bottom, rgba(244,240,232,.2), transparent 42%),
+    linear-gradient(165deg, #9a948e 0%, #6e6964 100%);
   clip-path:polygon(0 0, 50% 100%, 100% 0);
+  -webkit-clip-path:polygon(0 0, 50% 100%, 100% 0);
   transform-style:preserve-3d;
   transform-origin:top center;
-  border-bottom:1px solid var(--ivory-06);
+  -webkit-backface-visibility:hidden;
+  backface-visibility:hidden;
 }
 
 /* Centred by negative margins, not by a transform — the transform belongs
@@ -658,7 +683,7 @@ body.keys-open .expand .bar{opacity:1;transform:translateX(0)}
    width is also half its height. */
 .seal{
   position:absolute;
-  top:44%;left:50%;
+  top:52%;left:50%;
   width:16.7%;
   aspect-ratio:1;
   margin:-8.35% 0 0 -8.35%;
@@ -667,8 +692,9 @@ body.keys-open .expand .bar{opacity:1;transform:translateX(0)}
   align-items:center;
   justify-content:center;
   border-radius:50%;
-  border:1px solid rgba(244,240,232,.14);
+  border:1px solid rgba(244,240,232,.28);
   background:radial-gradient(circle at 38% 32%, #8B3A2A, #5A1F14);
+  box-shadow:0 4px 14px rgba(0,0,0,.45), inset 0 1px 0 rgba(244,240,232,.18);
   font-family:var(--display);
   font-size:clamp(17px,4.6vw,26px);
   line-height:1;
@@ -690,8 +716,8 @@ body.keys-open .expand .bar{opacity:1;transform:translateX(0)}
 @keyframes gate-exit  {to{opacity:0;transform:scale(1.05)}}
 @keyframes seal-break {to{opacity:0;transform:scale(.84) rotate(-9deg)}}
 @keyframes seal-breathe{
-  0%,100%{box-shadow:0 0 0 0    rgba(244,240,232,0),   0 6px 28px rgba(0,0,0,.7)}
-  50%    {box-shadow:0 0 18px 5px rgba(244,240,232,.08),0 6px 28px rgba(0,0,0,.7)}
+  0%,100%{box-shadow:0 0 0 0 rgba(244,240,232,0), 0 4px 14px rgba(0,0,0,.45), inset 0 1px 0 rgba(244,240,232,.18)}
+  50%    {box-shadow:0 0 18px 5px rgba(244,240,232,.14), 0 4px 14px rgba(0,0,0,.45), inset 0 1px 0 rgba(244,240,232,.18)}
 }
 
 .gate-hint{
@@ -898,6 +924,9 @@ body.playing-on .eq i:nth-child(5){animation-duration:1.4s;animation-delay:-.72s
 <div class="gate" id="gate">
   <div class="env">
     <div class="env-body"></div>
+    <div class="env-l" aria-hidden="true"></div>
+    <div class="env-r" aria-hidden="true"></div>
+    <div class="env-b" aria-hidden="true"></div>
     <div class="env-card">Sachin<span class="amp-sm">&amp;</span>Kesia</div>
     <div class="env-flap"></div>
     <div class="seal" aria-hidden="true">S</div>
