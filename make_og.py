@@ -24,22 +24,29 @@ CONFIG = {
 
     "note":        "",
 
-    "keys":        False,      # set True to bring the keyboard back
+    "keys":        True,       # a sliver of the keyboard down the left edge
     "octaves":     2,
 }
-OUT_DIR = "/mnt/user-data/outputs"
+# next to dinner.html, which is where og:image points
+OUT_DIR = os.path.dirname(os.path.abspath(__file__))
 W, H = 1080, 1350
 # ----------------------------------------------------------------------
 
-KEY    = (245, 239, 228)
-BLK    = (11, 9, 6)
-BRASS  = (201, 149, 74)
-LINEN  = (241, 234, 221)
-MUTED  = (156, 144, 131)
-RULE   = (104, 82, 48)
+# Charcoal ground, ivory type, gold kept for accents — the same palette
+# dinner.html uses. The page states its greys as ivory at an alpha; a JPEG
+# has no alpha, so the translucent ones are flattened onto the panel
+# background (#252323) here and given as flat RGB.
+KEY      = (244, 240, 232)     # --key
+BLK      = (10, 9, 9)          # --blk
+GOLD     = (201, 168, 76)      # --brass
+GOLD_DIM = (158, 134, 68)      # --gold-dim, flattened
+LINEN    = (244, 240, 232)     # --ivory
+IVORY_72 = (186, 183, 177)     # --ivory-72, flattened
+MUTED    = (130, 127, 124)     # --ivory-45, flattened
+RULE     = (72, 70, 69)        # --rule, flattened
 
-BOARD_W = 300          # white keys stop here; black keys run flush to the panel
-BLACK_X = 116
+BOARD_W = 250          # white keys stop here; black keys run flush to the panel
+BLACK_X = 97           # ...and start here, keeping the board's own proportion
 
 # set in build(), since they depend on whether the keyboard is drawn
 PANEL_L = PANEL_R = PX = MAXW = 0
@@ -78,13 +85,14 @@ def jost(size, weight=300):
 
 # ----------------------------- background -----------------------------
 def background():
-    """Warm light spilling from behind the keyboard, falling off to near-black."""
+    """The charcoal lift high on the page, falling away to near-black —
+    the same gradient body::before draws in dinner.html."""
     y, x = np.mgrid[0:H, 0:W].astype(np.float32)
-    cx, cy = (W * 0.22 if CONFIG.get("keys", False) else W * 0.5), H * 0.02
-    d = np.sqrt(((x - cx) / (W * 1.42)) ** 2 + ((y - cy) / (H * 0.90)) ** 2)
+    cx, cy = PX, H * 0.03
+    d = np.sqrt(((x - cx) / (W * 1.25)) ** 2 + ((y - cy) / (H * 1.00)) ** 2)
 
-    stops = [(0.00, (86, 62, 24)), (0.30, (52, 37, 16)),
-             (0.58, (30, 21, 11)), (0.86, (16, 12, 7)), (1.40, (9, 7, 5))]
+    stops = [(0.00, (58, 56, 56)), (0.28, (46, 43, 43)),
+             (0.52, (37, 35, 35)), (0.80, (26, 25, 25)), (1.25, (15, 14, 14))]
 
     img = np.zeros((H, W, 3), np.float32)
     for (t0, c0), (t1, c1) in zip(stops, stops[1:]):
@@ -94,10 +102,10 @@ def background():
                        np.array(c0, np.float32) * (1 - f) + np.array(c1, np.float32) * f, img)
     img = np.where((d >= stops[-1][0])[..., None], np.array(stops[-1][1], np.float32), img)
 
-    # a faint warm lift along the bottom edge
+    # the same faint gold spill the page keeps along the bottom edge
     lift = np.clip(1 - np.sqrt(((x - W * .58) / (W * .90)) ** 2 +
                                ((y - H * 1.10) / (H * .52)) ** 2), 0, 1) ** 1.8
-    img += lift[..., None] * np.array([56, 41, 19], np.float32)
+    img += lift[..., None] * np.array([26, 22, 11], np.float32)
 
     return Image.fromarray(np.clip(img, 0, 255).astype(np.uint8), "RGB")
 
@@ -106,10 +114,21 @@ def background():
 HAS_BLACK = {0, 1, 3, 4, 5}
 
 
+def edge_shadow(img, x0, w=44, strength=0.55):
+    """The keyboard casts onto the panel, the way .rack does on the page."""
+    a = strength * (1 - np.arange(w, dtype=np.float32) / w) ** 2
+    arr = np.asarray(img, np.float32).copy()
+    arr[:, x0:x0 + w, :] *= (1 - a[None, :, None])
+    return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGB")
+
+
 def keyboard(d, octaves):
     n = octaves * 7
     step = H / n
     gap = 5
+    # the rack's own ground, so the seams between keys read black and not
+    # as whatever the page gradient happens to be doing behind them
+    d.rectangle([0, 0, BOARD_W, H], fill=BLK)
     for i in range(n):
         top = i * step
         d.rounded_rectangle([0, top + gap / 2, BOARD_W, top + step - gap / 2],
@@ -155,32 +174,32 @@ def compose(d, k):
 
     if C["eyebrow"]:
         f = fit(d, C["eyebrow"], lambda s: jost(s), S(25), 9 * k, MAXW)
-        add(40, lambda y, f=f: tracked(d, y, C["eyebrow"], f, 9 * k, MUTED))
+        add(40, lambda y, f=f: tracked(d, y, C["eyebrow"], f, 9 * k, GOLD_DIM))
 
     fn_name = lambda t: fit(d, t, lambda s: bodoni(s, 400, 96), S(122), 0, MAXW)
     gap(54)
     add(110, lambda y: tracked(d, y, C["groom"], fn_name(C["groom"]), 0, LINEN))
-    add(76, lambda y: tracked(d, y, "&", bodoni(S(58), 400, 40, italic=True), 0, BRASS))
+    add(76, lambda y: tracked(d, y, "&", bodoni(S(58), 400, 40, italic=True), 0, IVORY_72))
     add(110, lambda y: tracked(d, y, C["bride"], fn_name(C["bride"]), 0, LINEN))
 
     gap(40)
     f_inv = bodoni(S(40), 400, 30, italic=True)
     for i, line in enumerate(C["invite"]):
-        add(56, lambda y, l=line: tracked(d, y, l, f_inv, 0, (226, 219, 206)))
+        add(56, lambda y, l=line: tracked(d, y, l, f_inv, 0, IVORY_72))
 
     gap(46)
-    add(30, lambda y: d.line([(PX - 34 * k, y), (PX + 34 * k, y)], fill=(150, 116, 62), width=2))
+    add(30, lambda y: d.line([(PX - 34 * k, y), (PX + 34 * k, y)], fill=RULE, width=2))
 
     gap(38)
-    add(46, lambda y: tracked(d, y, "WHEN", jost(S(21)), 7.5 * k, BRASS))
+    add(46, lambda y: tracked(d, y, "WHEN", jost(S(21)), 7.5 * k, GOLD))
     for line in C["when"]:
         f = fit(d, line, lambda s: bodoni(s, 400, 48), S(46), 1 * k, MAXW)
         add(58, lambda y, l=line, f=f: tracked(d, y, l, f, 1 * k, LINEN))
 
     if C["venue_name"]:
         gap(52, 1.2, "box-start")
-        add(56, lambda y: tracked(d, y, "WHERE", jost(S(21)), 7.5 * k, BRASS))
-        f = fit(d, C["venue_name"], lambda s: bodoni(s, 500, 48), S(46), 1 * k, MAXW - 80)
+        add(56, lambda y: tracked(d, y, "WHERE", jost(S(21)), 7.5 * k, GOLD))
+        f = fit(d, C["venue_name"], lambda s: bodoni(s, 400, 48), S(46), 1 * k, MAXW - 80)
         add(62, lambda y, f=f: tracked(d, y, C["venue_name"], f, 1 * k, LINEN))
         for line in C["venue_lines"]:
             f = fit(d, line, lambda s: jost(s), S(28), 4 * k, MAXW - 80)
@@ -206,6 +225,8 @@ def build():
     MAXW = PANEL_R - PANEL_L
 
     img = background()
+    if keys:
+        img = edge_shadow(img, BOARD_W)
     d = ImageDraw.Draw(img)
     if keys:
         keyboard(d, CONFIG["octaves"])
