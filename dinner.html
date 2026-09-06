@@ -7,11 +7,24 @@
 <meta name="description" content="Carmel Hall, Varapuzha. Saturday, 12 September 2026.">
 
 <!-- ============================================================
-     WHATSAPP / OPEN GRAPH PREVIEW
-     Replace SITE_BASE with your real GitHub Pages URL,
-     e.g. https://sachin.github.io/dinner
-     Must be absolute https:// URLs — WhatsApp does not run
-     JavaScript, so it cannot read the DINNER config below.
+     WHATSAPP / OPEN GRAPH PREVIEW  —  READ THIS ONE THING
+
+     The four URLs below MUST be the real, absolute address of this
+     page and of og-dinner.jpg. WhatsApp's crawler does not run
+     JavaScript and does not resolve relative paths, so a guessed or
+     placeholder address means no preview image at all.
+
+     Change the address below to wherever this page actually lives,
+     in all four places. If the page sits at
+
+         https://sachinsebastian1212.github.io/dinner/
+
+     then it is already correct. If it lives somewhere else — say
+     inside the wedding site — it would instead read
+
+         https://sachinsebastian1212.github.io/wedding/dinner/
+
+     og-dinner.jpg must sit in that same folder, next to this file.
      ============================================================ -->
 <meta property="og:type"             content="website">
 <meta property="og:site_name"        content="Sachin &amp; Kesia">
@@ -25,6 +38,7 @@
 <meta property="og:image:height"     content="1350">
 <meta property="og:image:alt"        content="Dinner invitation for Sachin and Kesia, 12 September 2026">
 <meta name="twitter:card"            content="summary_large_image">
+<meta property="og:locale"           content="en_IN">
 <meta name="theme-color"             content="#0A0806">
 <meta name="color-scheme"            content="dark">
 
@@ -305,9 +319,9 @@ body.keys-open .expand .bar{opacity:1;transform:translateX(0)}
 
   /* the card scrolls in this layout, so the stop button pins to the viewport
      and rides just above the keys instead of sitting at the card's foot */
-  body .playing{position:fixed;bottom:calc(var(--deck) + 14px)}
-  body.keys-open .playing{bottom:calc(var(--deck-x) + 14px)}
-  body.keys-hidden .playing{bottom:14px}
+  body .playing,body .loading{position:fixed;bottom:calc(var(--deck) + 14px)}
+  body.keys-open .playing,body.keys-open .loading{bottom:calc(var(--deck-x) + 14px)}
+  body.keys-hidden .playing,body.keys-hidden .loading{bottom:14px}
 
   /* the deck at full height leaves only a sliver of card, so keep the names */
   body.keys-open .hint,
@@ -524,6 +538,60 @@ body.keys-open .expand .bar{opacity:1;transform:translateX(0)}
 }
 .todo code{font-family:ui-monospace,monospace;color:var(--candle)}
 
+/* Sits where the stop button will later sit, and says the piano is still
+   arriving — so a tap that sounds thin is explained rather than puzzling. */
+.loading{
+  position:absolute;
+  left:50%;
+  bottom:clamp(14px,3vh,32px);
+  transform:translateX(-50%);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:7px;
+  padding:9px 18px 10px;
+  border:1px solid var(--rule);
+  border-radius:999px;
+  background:rgba(22,15,8,.86);
+  -webkit-backdrop-filter:blur(6px);
+  backdrop-filter:blur(6px);
+  opacity:0;
+  visibility:hidden;
+  z-index:5;
+  pointer-events:none;
+  transition:opacity .45s ease;
+}
+body.loading-on .loading{opacity:1;visibility:visible}
+body.playing-on .loading{display:none}   /* the two share a spot; music wins */
+
+.loading-label{
+  font-family:var(--util);
+  font-weight:300;
+  white-space:nowrap;
+  font-size:.6rem;
+  letter-spacing:.24em;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+.loading-track{
+  position:relative;
+  width:96px;
+  height:2px;
+  border-radius:2px;
+  background:rgba(201,149,74,.2);
+  overflow:hidden;
+}
+.loading-track i{
+  position:absolute;
+  inset:0;
+  border-radius:2px;
+  background-color:var(--brass);
+  background-image:linear-gradient(90deg, var(--brass), var(--candle));
+  transform:scaleX(0);
+  transform-origin:left center;
+  transition:transform .25s ease-out;
+}
+
 /* Appears once the music has been left running on its own, and stops it. */
 .playing{
   position:absolute;
@@ -596,11 +664,31 @@ body.playing-on .eq i:nth-child(5){animation-duration:1.4s;animation-delay:-.72s
 .rsvp a{color:var(--linen);text-decoration:none;border-bottom:1px solid var(--rule)}
 
 @media (prefers-reduced-motion:reduce){
-  .hint,.where,.pin,.rack,.expand,.expand svg,.expand .bar{transition:none}
+  .hint,.where,.pin,.rack,.expand,.expand svg,.expand .bar,.loading{transition:none}
   .playing{transition:none}
   body.playing-on .eq i{animation:none;transform:scaleY(.6)}
 }
 </style>
+<script>
+/* The preview only works if og:url and og:image match where this page is
+   really served from. Nothing can fix that at runtime — crawlers never run
+   this — but it does say so plainly the moment the page is opened. */
+(function () {
+  var img = document.querySelector('meta[property="og:image"]');
+  if (!img) return;
+  var want = location.href.replace(/[^/]*$/, "");
+  var have = img.content.replace(/[^/]*$/, "");
+  if (location.protocol.indexOf("http") === 0 && have !== want) {
+    console.warn(
+      "Link preview will not work.\n" +
+      "The og:image and og:url tags point at: " + have + "\n" +
+      "but this page is actually served from: " + want + "\n" +
+      "Edit the four URLs at the top of this file to match, " +
+      "and make sure og-dinner.jpg sits in that folder."
+    );
+  }
+})();
+</script>
 </head>
 <body>
 
@@ -659,6 +747,10 @@ body.playing-on .eq i:nth-child(5){animation-duration:1.4s;animation-delay:-.72s
       </a>
 
       <p class="rsvp" id="rsvp"></p>
+    </div>
+    <div class="loading" id="loading" role="status" aria-label="Loading the piano">
+      <span class="loading-label">Tuning the piano</span>
+      <span class="loading-track"><i id="loadingBar"></i></span>
     </div>
     <button class="playing" id="playing" type="button" aria-label="Stop the music">
       <span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
@@ -839,28 +931,89 @@ const PIANO_MAP = { 48: "C3", 51: "Ds3", 54: "Fs3", 57: "A3",
                     84: "C6", 87: "Ds6", 90: "Fs6", 93: "A6" };
 const PIANO_KEYS = Object.keys(PIANO_MAP).map(Number);
 
-let ctx = null, piano = null, pianoTried = false;
+const PIANO_BYTES = 488316;            // the set's real size, for the progress bar
+
+let ctx = null, piano = null, pianoTries = 0, pianoLoading = false;
 const freq = m => 440 * Math.pow(2, (m - 69) / 12);
 
 function audio() {
   if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
   if (ctx.state === "suspended") ctx.resume();
-  if (!pianoTried) { pianoTried = true; loadPiano(); }
+  loadPiano();                          // a no-op once it has them
   return ctx;
 }
 
+/* Reads each file in chunks so the bar moves as the bytes arrive, rather
+   than jumping sixteen times as whole files land. */
+function pull(url, onBytes) {
+  return fetch(url).then(r => {
+    if (!r.ok) return Promise.reject(r.status);
+    if (!r.body || !r.body.getReader) return r.arrayBuffer();   // older browsers
+    const reader = r.body.getReader();
+    const parts = [];
+    let n = 0;
+    const step = () => reader.read().then(({ done, value }) => {
+      if (done) {
+        const all = new Uint8Array(n);
+        let at = 0;
+        for (const part of parts) { all.set(part, at); at += part.length; }
+        return all.buffer;
+      }
+      parts.push(value); n += value.length;
+      onBytes(value.length);
+      return step();
+    });
+    return step();
+  });
+}
+
 function loadPiano() {
+  if (piano || pianoLoading || pianoTries >= 2) return;
+  pianoLoading = true;
+  pianoTries++;
+
   const got = {};
-  let left = PIANO_KEYS.length, ok = true;
+  let left = PIANO_KEYS.length, ok = true, bytes = 0;
+
+  showLoading();
+  const tick = n => { bytes += n; setProgress(bytes / PIANO_BYTES); };
+
   for (const midi of PIANO_KEYS) {
-    fetch(PIANO_DIR + PIANO_MAP[midi] + ".mp3")
-      .then(r => r.ok ? r.arrayBuffer() : Promise.reject(r.status))
+    pull(PIANO_DIR + PIANO_MAP[midi] + ".mp3", tick)
       .then(a => ctx.decodeAudioData(a))
       .then(buf => { got[midi] = buf; })
       .catch(() => { ok = false; })          // no samples: stay on the synth
-      .then(() => { if (--left === 0 && ok) piano = got; });
+      .then(() => {
+        if (--left) return;
+        pianoLoading = false;
+        if (ok) piano = got;
+        doneLoading(ok);
+      });
   }
 }
+
+/* ---- the little bar at the foot of the card ---- */
+const loadPill = $("loading"), loadBar = $("loadingBar");
+
+function showLoading() {
+  setProgress(0);
+  document.body.classList.add("loading-on");
+}
+
+function setProgress(f) {
+  loadBar.style.transform = "scaleX(" + Math.max(0, Math.min(1, f)).toFixed(4) + ")";
+}
+
+function doneLoading(ok) {
+  setProgress(1);                       // land on full even if the total drifted
+  setTimeout(() => {
+    document.body.classList.remove("loading-on");
+    if (ok) $("hint").innerHTML = "\u266A &nbsp;Tap the keys";
+  }, ok ? 550 : 0);
+}
+
+// start before anyone taps, so the piano is usually ready by the time it matters
+audio();
 
 // nearest sampled note, then pitch-shifted to the one we want
 function sampled(midi, level, len, when) {
@@ -963,6 +1116,7 @@ function voice(midi, peak, len, when) {
    Two fingers fall back to the chord pattern above. If the file isn't
    there, the pattern is all you get and nothing breaks. */
 const MIDI_FILE = "song.mid";
+const LOOP_GAP = 2.4;                  // seconds of quiet before it comes round again
 
 let song = null, songAt = 0, songClock = 0, songTimer = 0;
 
@@ -1065,7 +1219,13 @@ function songBeat() {
     const level = 0.06 + (n.vel / 127) * 0.5;
     voice(n.midi, level, Math.max(1, Math.min(3, n.d + 1.2)), songClock + n.t);
   }
-  if (songAt >= song.length) { songAt = 0; songClock = ctx.currentTime + 0.4; }
+  if (songAt >= song.length) {
+    // the last notes are scheduled ahead, so the gap is measured from where
+    // the piece actually ends rather than from this moment
+    const tail = songClock + song[song.length - 1].t + LOOP_GAP;
+    songAt = 0;
+    songClock = Math.max(ctx.currentTime, tail);
+  }
   songTimer = setTimeout(songBeat, 70);
 }
 
