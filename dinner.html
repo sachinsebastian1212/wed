@@ -1654,7 +1654,7 @@ function frame() {
    rather use four; three would then behave like one. */
 const RESET_FINGERS = 3;
 const fingers = new Set();
-let settle = 0;
+let settle = 0, peak = 0;
 
 function playFor(count, vy) {
   if (!song || count === 2) {
@@ -1678,7 +1678,15 @@ function playFor(count, vy) {
    audibly pass through the two-finger case on its way. */
 function decide(vy) {
   clearTimeout(settle);
-  settle = setTimeout(() => playFor(fingers.size, vy), 90);
+  settle = setTimeout(() => { settle = 0; playFor(peak, vy); }, 80);
+}
+
+// a quick tap can end before the settle fires; play it rather than lose it
+function settleNow(vy) {
+  if (!settle) return;
+  clearTimeout(settle);
+  settle = 0;
+  playFor(peak, vy);
 }
 
 panel.addEventListener("pointerdown", e => {
@@ -1686,8 +1694,14 @@ panel.addEventListener("pointerdown", e => {
   // the deck layout scrolls, so a finger there belongs to the page, not the pen
   if (isDeck() && e.pointerType === "touch") return;
 
+  // Resume the audio here, in the gesture handler itself. Browsers only
+  // unlock sound from a real touch, and a timer callback no longer counts as
+  // one — which is why the first tap used to make no sound at all.
+  audio();
+
   if (!fingers.size) heldFrom = performance.now();
   fingers.add(e.pointerId);
+  peak = Math.max(peak, fingers.size);   // counted after the add
   sizeTrail();                          // re-read the box before the first mark
   inking = true; px = e.clientX - ox; py = e.clientY - oy;
   holdY = e.clientY;
@@ -1739,7 +1753,8 @@ function stopInk(e) {
   if (e && e.pointerId !== undefined) fingers.delete(e.pointerId);
   else fingers.clear();
   if (fingers.size) return;             // still a finger down
-  clearTimeout(settle);
+  settleNow(holdY);                     // a tap that ended early still sounds
+  peak = 0;
   inking = false;
   stopRun();
 
