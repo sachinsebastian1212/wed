@@ -538,6 +538,61 @@ body.keys-open .expand .bar{opacity:1;transform:translateX(0)}
 }
 .todo code{font-family:ui-monospace,monospace;color:var(--candle)}
 
+/* ---------------- the envelope that switches the sound on -------------- */
+.gate{
+  position:fixed;
+  inset:0;
+  z-index:40;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:clamp(22px,4.5vh,40px);
+  background:radial-gradient(120% 80% at 50% 30%, #1B1308 0%, #0B0806 55%, #060504 100%);
+  cursor:pointer;
+  touch-action:none;
+  transition:opacity .5s ease;
+}
+.gate.gone{opacity:0;pointer-events:none}
+
+.env{
+  width:clamp(168px,48vw,244px);
+  perspective:820px;
+  filter:drop-shadow(0 18px 30px rgba(0,0,0,.55));
+}
+.env svg{width:100%;height:auto;display:block;overflow:visible}
+
+.flap{
+  transform-box:fill-box;
+  transform-origin:50% 0%;
+  transition:transform .75s cubic-bezier(.5,0,.2,1);
+}
+.gate.opening .flap{transform:rotateX(-168deg)}
+
+.note-card{
+  transform-box:fill-box;
+  transform-origin:50% 100%;
+  opacity:0;
+  transition:transform .8s cubic-bezier(.3,0,.2,1) .18s, opacity .5s ease .18s;
+}
+.gate.opening .note-card{opacity:1;transform:translateY(-17%) scale(1.03)}
+
+.gate-hint{
+  font-family:var(--util);
+  font-weight:300;
+  font-size:.66rem;
+  letter-spacing:.32em;
+  text-transform:uppercase;
+  color:var(--muted);
+  padding-left:.32em;
+  animation:breathe 2.6s ease-in-out infinite;
+}
+.gate.opening .gate-hint{opacity:0;transition:opacity .3s ease;animation:none}
+@keyframes breathe{
+  0%,100%{opacity:.55}
+  50%    {opacity:1}
+}
+
 /* Sits where the stop button will later sit, and says the piano is still
    arriving — so a tap that sounds thin is explained rather than puzzling. */
 .loading{
@@ -665,6 +720,8 @@ body.playing-on .eq i:nth-child(5){animation-duration:1.4s;animation-delay:-.72s
 
 @media (prefers-reduced-motion:reduce){
   .hint,.where,.pin,.rack,.expand,.expand svg,.expand .bar,.loading{transition:none}
+  .gate-hint{animation:none}
+  .flap,.note-card{transition-duration:.01s}
   .playing{transition:none}
   body.playing-on .eq i{animation:none;transform:scaleY(.6)}
 }
@@ -694,6 +751,43 @@ body.playing-on .eq i:nth-child(5){animation-duration:1.4s;animation-delay:-.72s
 
 <span class="probe" id="probeA" aria-hidden="true"></span>
 <span class="probe" id="probeB" aria-hidden="true"></span>
+
+<!-- The sound gate. Browsers only wake audio on a real touch, so rather than
+     that being an invisible technicality, the first tap opens an envelope. -->
+<div class="gate" id="gate">
+  <div class="env">
+    <svg viewBox="0 0 200 140" aria-hidden="true">
+      <defs>
+        <linearGradient id="paper" x1="0" y1="0" x2=".4" y2="1">
+          <stop offset="0" stop-color="#F3EAD8"/><stop offset="1" stop-color="#DFD2B8"/>
+        </linearGradient>
+        <linearGradient id="paperLit" x1="0" y1="0" x2=".3" y2="1">
+          <stop offset="0" stop-color="#FBF6EC"/><stop offset="1" stop-color="#EEE4D0"/>
+        </linearGradient>
+        <linearGradient id="flapGrad" x1="0" y1="0" x2=".2" y2="1">
+          <stop offset="0" stop-color="#E8DCC2"/><stop offset="1" stop-color="#CFC0A2"/>
+        </linearGradient>
+      </defs>
+
+      <rect x="2" y="4" width="196" height="132" rx="5" fill="url(#paper)"/>
+      <path d="M2 136 L100 64 L198 136 Z" fill="url(#paperLit)" opacity=".55"/>
+      <path d="M2 8 L100 78 L198 8" fill="none" stroke="#C3B597" stroke-width="1.2"/>
+
+      <g class="note-card">
+        <rect x="34" y="20" width="132" height="96" rx="3" fill="#FCF8F0"/>
+        <text x="100" y="62" text-anchor="middle" font-family="Bodoni Moda, Georgia, serif"
+              font-style="italic" font-size="28" fill="#C9954A">&amp;</text>
+        <path d="M68 80 H132" stroke="#DCCFB4" stroke-width="1.4"/>
+      </g>
+
+      <g class="flap">
+        <path d="M2 6 L100 76 L198 6 Z" fill="url(#flapGrad)" stroke="#C3B597" stroke-width="1"/>
+      </g>
+    </svg>
+  </div>
+
+  <p class="gate-hint">Tap to open</p>
+</div>
 
 <canvas id="trail" aria-hidden="true"></canvas>
 
@@ -1014,6 +1108,29 @@ function doneLoading(ok) {
 
 // start before anyone taps, so the piano is usually ready by the time it matters
 audio();
+
+/* ------------------- the envelope that opens the sound ---------------- */
+/* The browser will not make a sound until a real touch says so. This turns
+   that requirement into the first thing the guest does, and confirms the
+   sound is on by playing a chord as the flap lifts. */
+const gate = $("gate");
+let opened = false;
+
+gate.addEventListener("pointerdown", e => {
+  if (opened) return;
+  opened = true;
+  e.preventDefault();
+  e.stopPropagation();
+
+  audio();                             // unlocked here, inside the tap itself
+  gate.classList.add("opening");
+
+  // a quiet chord so the guest hears that sound is now on
+  [60, 64, 67, 72].forEach((m, i) => setTimeout(() => voice(m, .055, 2.4), 120 + i * 90));
+
+  setTimeout(() => gate.classList.add("gone"), 1250);
+  setTimeout(() => gate.remove(), 1800);
+});
 
 // nearest sampled note, then pitch-shifted to the one we want
 function sampled(midi, level, len, when) {
