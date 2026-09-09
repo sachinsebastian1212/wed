@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sachin &amp; Kesia — Madhuram Veppu, 12 September 2026</title>
-<meta name="description" content="Carmel Hall, Varapuzha. Saturday, 12 September 2026.">
+<title>Sachin &amp; Kesia — Madhuram Veppu, 12 September 2026, 7:30 PM</title>
+<meta name="description" content="Carmel Hall, Varapuzha. Saturday, 12 September 2026, 7:30 PM.">
 
 <!-- ============================================================
      WHATSAPP / OPEN GRAPH PREVIEW  —  READ THIS ONE THING
@@ -29,7 +29,7 @@
 <meta property="og:type"             content="website">
 <meta property="og:site_name"        content="Sachin &amp; Kesia">
 <meta property="og:title"            content="Sachin &amp; Kesia — Dinner">
-<meta property="og:description"      content="Carmel Hall, Varapuzha. Saturday, 12 September 2026.">
+<meta property="og:description"      content="Carmel Hall, Varapuzha. Saturday, 12 September 2026, 7:30 PM.">
 <meta property="og:url"              content="https://sachinsebastian1212.github.io/wed/dinner.html">
 <meta property="og:image"            content="https://sachinsebastian1212.github.io/wed/og-dinner.jpg">
 <meta property="og:image:secure_url" content="https://sachinsebastian1212.github.io/wed/og-dinner.jpg">
@@ -351,6 +351,7 @@ body.keys-open .expand .bar{opacity:1;transform:translateX(0)}
   body.keys-open .rule,
   body.keys-open .label,
   body.keys-open .when,
+  body.keys-open .when-time,
   body.keys-open .where,
   body.keys-open .rsvp{display:none}
   body.keys-open .names{
@@ -368,6 +369,7 @@ body.keys-open .expand .bar{opacity:1;transform:translateX(0)}
   body.keys-open .rule,
   body.keys-open .label,
   body.keys-open .when,
+  body.keys-open .when-time,
   body.keys-open .where,
   body.keys-open .rsvp{display:none}
 
@@ -503,6 +505,17 @@ body.keys-open .expand .bar{opacity:1;transform:translateX(0)}
   font-size:clamp(1.12rem,4.4vw,1.6rem);
   letter-spacing:.01em;
   line-height:1.3;
+}
+
+/* Still the date's face and colour, so it carries — a step down in size is
+   all that separates the hour from the day. */
+.when-time{
+  margin-top:9px;
+  font-family:var(--display);
+  font-size:clamp(.95rem,3.6vw,1.3rem);
+  letter-spacing:.04em;
+  line-height:1.3;
+  color:var(--ivory);
 }
 
 /* ============ where ============ */
@@ -752,8 +765,9 @@ body.revealed .invite        {animation-delay:.3s}
 body.revealed .rule          {animation-delay:.38s}
 body.revealed .inner > .label{animation-delay:.44s}
 body.revealed .when          {animation-delay:.48s}
-body.revealed .where         {animation-delay:.52s}
-body.revealed .rsvp          {animation-delay:.58s}
+body.revealed .when-time     {animation-delay:.52s}
+body.revealed .where         {animation-delay:.56s}
+body.revealed .rsvp          {animation-delay:.62s}
 
 /* Sits where the stop button will later sit, and says the piano is still
    arriving — so a tap that sounds thin is explained rather than puzzling. */
@@ -980,6 +994,7 @@ body.playing-on .eq i:nth-child(5){animation-duration:1.4s;animation-delay:-.72s
 
       <p class="label">When</p>
       <p class="when" id="when"></p>
+      <p class="when-time" id="whenTime"></p>
 
       <a class="where" id="where" draggable="false">
         <p class="label">Where</p>
@@ -1011,6 +1026,7 @@ const DINNER = {
   invite:     ["would love your company", "at Madhuram Veppu"],
 
   when:       ["Saturday", "12 September 2026"],
+  time:       "7:30 PM",             // leave "" to drop the line
 
   // --- venue ---
   venueName:  "Carmel Hall",
@@ -1031,6 +1047,7 @@ $("groom").textContent = DINNER.groom;
 $("bride").textContent = DINNER.bride;
 $("invite").innerHTML = lines(DINNER.invite);
 $("when").innerHTML = lines(DINNER.when);
+if (DINNER.time) $("whenTime").textContent = DINNER.time;
 
 if (DINNER.rsvp) {
   $("rsvp").innerHTML = 'RSVP <a href="tel:' + DINNER.rsvp.replace(/\s/g, "") + '">' +

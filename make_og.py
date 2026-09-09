@@ -16,8 +16,9 @@ CONFIG = {
     "eyebrow":     "AN EVENING BEFORE THE WEDDING",
     "groom":       "Sachin",
     "bride":       "Kesia",
-    "invite":      ["would love your company", "at dinner"],
+    "invite":      ["would love your company", "at Madhuram Veppu"],
     "when":        ["Saturday", "12 September 2026"],
+    "time":        "7:30 PM",
 
     "venue_name":  "Carmel Hall",
     "venue_lines": ["Varapuzha, Kerala"],
@@ -195,6 +196,10 @@ def compose(d, k):
     for line in C["when"]:
         f = fit(d, line, lambda s: bodoni(s, 400, 48), S(46), 1 * k, MAXW)
         add(58, lambda y, l=line, f=f: tracked(d, y, l, f, 1 * k, LINEN))
+    if C.get("time"):
+        gap(6, 0.0)
+        f = fit(d, C["time"], lambda s: bodoni(s, 400, 48), S(37), 2 * k, MAXW)
+        add(50, lambda y, f=f: tracked(d, y, C["time"], f, 2 * k, LINEN))
 
     if C["venue_name"]:
         gap(52, 1.2, "box-start")
