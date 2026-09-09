@@ -16,7 +16,7 @@ CONFIG = {
     "eyebrow":     "AN EVENING BEFORE THE WEDDING",
     "groom":       "Sachin",
     "bride":       "Kesia",
-    "invite":      ["would love your company", "at dinner"],
+    "invite":      ["would love your company", "at Madhuram Veppu"],
     "when":        ["Sunday", "13 September 2026"],
     "time":        "7:00 pm",  # "" leaves the time off the image entirely
 
