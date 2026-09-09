@@ -17,7 +17,8 @@ CONFIG = {
     "groom":       "Sachin",
     "bride":       "Kesia",
     "invite":      ["would love your company", "at dinner"],
-    "when":        ["Saturday", "12 September 2026"],
+    "when":        ["Sunday", "13 September 2026"],
+    "time":        "7:00 pm",  # "" leaves the time off the image entirely
 
     "venue_name":  "Carmel Hall",
     "venue_lines": ["Varapuzha, Kerala"],
@@ -27,13 +28,13 @@ CONFIG = {
     "keys":        True,       # a sliver of the keyboard down the left edge
     "octaves":     2,
 }
-# next to dinner.html, which is where og:image points
+# next to index.html, which is where og:image points
 OUT_DIR = os.path.dirname(os.path.abspath(__file__))
 W, H = 1080, 1350
 # ----------------------------------------------------------------------
 
 # Charcoal ground, ivory type, gold kept for accents — the same palette
-# dinner.html uses. The page states its greys as ivory at an alpha; a JPEG
+# index.html uses. The page states its greys as ivory at an alpha; a JPEG
 # has no alpha, so the translucent ones are flattened onto the panel
 # background (#252323) here and given as flat RGB.
 KEY      = (244, 240, 232)     # --key
@@ -86,7 +87,7 @@ def jost(size, weight=300):
 # ----------------------------- background -----------------------------
 def background():
     """The charcoal lift high on the page, falling away to near-black —
-    the same gradient body::before draws in dinner.html."""
+    the same gradient body::before draws in index.html."""
     y, x = np.mgrid[0:H, 0:W].astype(np.float32)
     cx, cy = PX, H * 0.03
     d = np.sqrt(((x - cx) / (W * 1.25)) ** 2 + ((y - cy) / (H * 1.00)) ** 2)
@@ -195,6 +196,10 @@ def compose(d, k):
     for line in C["when"]:
         f = fit(d, line, lambda s: bodoni(s, 400, 48), S(46), 1 * k, MAXW)
         add(58, lambda y, l=line, f=f: tracked(d, y, l, f, 1 * k, LINEN))
+
+    if C.get("time"):
+        f = fit(d, C["time"], lambda s: jost(s), S(28), 4 * k, MAXW)
+        add(48, lambda y, f=f: tracked(d, y, C["time"], f, 4 * k, IVORY_72))
 
     if C["venue_name"]:
         gap(52, 1.2, "box-start")
