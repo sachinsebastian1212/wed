@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sachin &amp; Kesia — Madhuram Veppu, 13 September 2026</title>
-<meta name="description" content="Carmel Hall, Varapuzha. Sunday, 13 September 2026, 7:00 pm.">
+<meta name="description" content="Sunday, 13 September 2026, 7:00 pm.">
 
 <!-- ============================================================
      WHATSAPP / OPEN GRAPH PREVIEW  —  READ THIS ONE THING
@@ -28,7 +28,7 @@
 <meta property="og:type"             content="website">
 <meta property="og:site_name"        content="Sachin &amp; Kesia">
 <meta property="og:title"            content="Sachin &amp; Kesia — Madhuram Veppu">
-<meta property="og:description"      content="Carmel Hall, Varapuzha. Sunday, 13 September 2026, 7:00 pm.">
+<meta property="og:description"      content="Sunday, 13 September 2026, 7:00 pm.">
 <meta property="og:url"              content="https://kesiasachin.sachinkesia.workers.dev/">
 <meta property="og:image"            content="https://kesiasachin.sachinkesia.workers.dev/og-dinner.jpg">
 <meta property="og:image:secure_url" content="https://kesiasachin.sachinkesia.workers.dev/og-dinner.jpg">
@@ -1001,10 +1001,10 @@ const DINNER = {
   when:       ["Sunday", "13 September 2026"],
   time:       "7:00 pm",             // leave "" and no time is shown at all
 
-  // --- venue ---
-  venueName:  "Carmel Hall",
-  venueLines: ["Varapuzha, Kerala"],
-  mapsUrl:    "https://maps.app.goo.gl/uv8odtBzHEgGqZ8F8",
+  // --- venue --- leave venueName empty and the Where block is left off
+  venueName:  "",                    // "Carmel Hall"
+  venueLines: [],                    // ["Varapuzha, Kerala"]
+  mapsUrl:    "",                    // "https://maps.app.goo.gl/uv8odtBzHEgGqZ8F8"
 
   rsvp:       "",                    // e.g. "+91 98470 00000"
 
@@ -1050,8 +1050,7 @@ if (DINNER.venueName) {
     box.setAttribute("aria-label", "Open " + DINNER.venueName + " in Maps");
   }
 } else {
-  wb.innerHTML = '<p class="todo">Set <code>venueName</code>, <code>venueLines</code> ' +
-                 'and <code>mapsUrl</code> in the DINNER block to fill this in.</p>';
+  $("where").remove();
 }
 
 /* ------------------------------ keyboard ----------------------------- */

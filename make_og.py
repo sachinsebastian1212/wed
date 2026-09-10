@@ -20,8 +20,8 @@ CONFIG = {
     "when":        ["Sunday", "13 September 2026"],
     "time":        "7:00 pm",  # "" leaves the time off the image entirely
 
-    "venue_name":  "Carmel Hall",
-    "venue_lines": ["Varapuzha, Kerala"],
+    "venue_name":  "",         # "Carmel Hall" — empty leaves the WHERE box off
+    "venue_lines": [],         # ["Varapuzha, Kerala"]
 
     "note":        "",
 
