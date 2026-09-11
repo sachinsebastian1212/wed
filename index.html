@@ -77,6 +77,8 @@
   --muted:    var(--ivory-45);
   --rule:     rgba(244,240,232,.14);
 
+  --stage:   940px;                      /* how wide the card ever gets */
+  --type-col:460px;                      /* ...and the column of type in it */
   --board:   clamp(94px, 24vw, 200px);   /* keyboard width, portrait  */
   --board-x: min(46vw, 268px);           /* ...when expanded          */
   --deck:    clamp(88px, 23vh, 148px);   /* keyboard height, landscape */
@@ -125,7 +127,7 @@ body::after{
   position:relative;
   z-index:1;
   display:flex;
-  max-width:940px;
+  max-width:var(--stage);
   margin:0 auto;
   min-height:100svh;
 }
@@ -334,14 +336,37 @@ body.keys-open .expand .bar{opacity:1;transform:translateX(0)}
 
   /* the card CSS is declared after this block, so these are scoped to body
      to outrank the plain .panel rule rather than relying on order */
-  body .panel{padding-bottom:calc(var(--deck) + 34px);touch-action:auto}
+  body .panel{padding-bottom:calc(var(--deck) + 34px);touch-action:auto;max-height:none}
   body.keys-open .panel{padding-bottom:calc(var(--deck-x) + 34px)}
 
+  /* Lying down there is no spare height to give away, so here the two of
+     them come out of the flow and stand on the deck instead. What keeps
+     them off the words in this layout is width, not height: the type holds to
+     --type-col down the middle of the window here, and the photograph is
+     not allowed past the edge of that. */
+  body .couple{
+    position:fixed;
+    right:0;
+    bottom:var(--deck);
+    margin:0;
+    height:clamp(140px, 38svh, 260px);
+    max-width:max(0px, calc(50vw - var(--type-col) / 2 - 10px));
+  }
+  body.keys-hidden .couple{bottom:0}
+
   /* the card scrolls in this layout, so the stop button pins to the viewport
-     and rides just above the keys instead of sitting at the card's foot */
+     and rides just above the keys instead of sitting at the card's foot —
+     and the hint, down in the corner, does the same */
   body .playing,body .loading{position:fixed;bottom:calc(var(--deck) + 14px)}
   body.keys-open .playing,body.keys-open .loading{bottom:calc(var(--deck-x) + 14px)}
   body.keys-hidden .playing,body.keys-hidden .loading{bottom:14px}
+  body .hint{
+    position:fixed;
+    left:16px;
+    bottom:calc(var(--deck) + 14px);
+    transform:none;
+  }
+  body.keys-hidden .hint{bottom:14px}
 
   /* the deck at full height leaves only a sliver of card, so keep the names */
   body.keys-open .hint,
@@ -350,16 +375,19 @@ body.keys-open .expand .bar{opacity:1;transform:translateX(0)}
   body.keys-open .rule,
   body.keys-open .label,
   body.keys-open .when,
+  body.keys-open .when-time,
   body.keys-open .where,
-  body.keys-open .rsvp{display:none}
+  body.keys-open .rsvp,
+  body.keys-open .couple{display:none}
   body.keys-open .names{
     margin-top:0;
     font-size:clamp(1.5rem,6.6svh,2.6rem);
   }
 }
 
-/* ---- a narrow portrait card can't hold everything once the keys grow,
-        so it falls back to just the two names ---- */
+/* ---- a narrow portrait card can't hold anything once the keys grow this
+        wide, so it gives the whole of itself over to them. The two names
+        keep their place only where the keys lie down, in landscape ---- */
 @media (orientation:portrait) and (max-width:620px){
   body.keys-open .hint,
   body.keys-open .eyebrow,
@@ -367,35 +395,21 @@ body.keys-open .expand .bar{opacity:1;transform:translateX(0)}
   body.keys-open .rule,
   body.keys-open .label,
   body.keys-open .when,
+  body.keys-open .when-time,
   body.keys-open .where,
-  body.keys-open .rsvp{display:none}
-
-  body.keys-open .panel{padding-left:0}
-  body.keys-open .inner{position:static}   /* so the names sit against the panel */
-
-  /* Wide open there is no room for the card, so the names lie on their side,
-     reading top to bottom. Turning the phone brings them upright — and hands
-     the keyboard the whole width to be played on. Nudged right of centre to
-     stay clear of the tab. */
-  body.keys-open .names{
-    position:absolute;
-    left:calc(50% + 24px);
-    top:50%;
-    display:flex;
-    flex-direction:column-reverse;      /* so it reads Sachin, &, Kesia once turned */
-    align-items:center;
-    gap:0;
-    width:74svh;
-    margin:0;
-    white-space:nowrap;
-    font-size:clamp(1.55rem,5.6svh,2.4rem);
-    transform:translate(-50%,-50%) rotate(90deg);
-  }
-  body.keys-open .amp{margin:0;font-size:.62em}
+  body.keys-open .rsvp,
+  body.keys-open .names,
+  body.keys-open .couple{display:none}
 }
 
 /* ============ the card ============ */
 .panel{
+  --pad-y:clamp(24px,4.6vh,72px);
+  --pad-x:clamp(16px,4.5vw,46px);
+  /* the card is the window, no taller: without a ceiling the two children
+     would simply push it past the bottom of the screen and nothing would
+     ever be asked to shrink */
+  max-height:100svh;
   position:relative;
   flex:1 1 auto;
   min-width:0;
@@ -405,9 +419,79 @@ body.keys-open .expand .bar{opacity:1;transform:translateX(0)}
   justify-content:center;
   align-items:center;
   text-align:center;
-  padding:clamp(24px,4.6vh,72px) clamp(16px,4.5vw,46px);
+  padding:var(--pad-y) var(--pad-x);
 }
-.inner{position:relative;z-index:1;width:100%;max-width:460px;transform-origin:top center}
+/* margin-block:auto — the auto margins swallow whatever height the
+   photograph leaves over, so the type is centred in the room above it
+   rather than in the card as a whole */
+.inner{position:relative;z-index:1;width:100%;max-width:var(--type-col);transform-origin:top center;margin-block:auto;flex-shrink:0}
+
+/* ---- the two of us, in the bottom corner ---- */
+/* The file is a cut-out with a feathered edge, so it dissolves into the
+   charcoal instead of sitting on it in a box — the same way the photograph
+   reads on the image WhatsApp shows.
+
+   It stands in the flow, as the card's second and last child, rather than
+   being laid over the top of it. That is the whole trick: the height it
+   takes is height the type cannot have, so the two can never meet. When the
+   card is tall enough for both they simply sit one above the other, and when
+   it is not — a short phone, a venue block added back in — flex-shrink takes
+   the difference out of the photograph and leaves the words their room.
+
+   The negative margins carry it back out through the card's padding, and on
+   a screen wider than the stage, on out to the window itself, so it always
+   stands in the true corner. The one edge the cut-out does not feather is
+   the one the crop made along the bottom, and that edge ends up flush with
+   the floor of the window, with nothing to give itself away against. */
+.couple{
+  /* 1.085 is the file's own 740 x 803, and the file is cropped to the two of
+     them with nothing spare around it, so the box is the photograph exactly:
+     the room reserved is the room used, none of it held for empty sky.
+
+     Width runs to the keys and stops 28px short of them, which is the channel
+     .hint stands up in. The card is narrow on a phone and the leftover height
+     is generous, so it is the width that decides how large the two of them
+     stand, and every pixel of it that is not the hint's is spent. */
+  --couple-w:min(calc(100vw - var(--board) - 28px), 430px);
+  align-self:flex-end;
+  flex:0 1 auto;
+  min-height:0;
+  width:auto;
+  height:min(clamp(180px, 62svh, 620px), calc(var(--couple-w) * 1.085));
+  margin:0 calc(-1 * var(--pad-x) - max(0px, (100vw - var(--stage)) / 2))
+           calc(-1 * var(--pad-y));
+  /* should a browser decline to narrow the box as flex-shrink lowers it,
+     the picture letterboxes inside instead of stretching */
+  object-fit:contain;
+  object-position:right bottom;
+  pointer-events:none;
+  -webkit-user-drag:none;
+  opacity:0;
+  transition:opacity 1.2s ease .45s;
+}
+/* it arrives with the card, a beat after the lines have landed */
+body.revealed .couple{opacity:1}
+
+/* Past this width the card stops being a column and starts being a room:
+   the type still holds to --type-col down the middle, and what is left over
+   at the right of it is wider than the photograph needs. So there it comes
+   out of the flow and takes that open ground instead, at full size, rather
+   than buying its place with height the card can spare but does not need to.
+
+   The reach of the ground it takes: the card is --stage wide at most and
+   centred, the keys take --board off the left of it, and the type is
+   centred in what remains — which leaves 50vw - --type-col/2 - --board/2
+   clear to the right of the last letter. 12px of that stays air. */
+@media (min-width:1220px) and (min-height:621px){
+  body .couple{
+    position:fixed;
+    right:0;
+    bottom:0;
+    margin:0;
+    height:clamp(200px, 44svh, 470px);
+    max-width:calc(50vw - var(--type-col) / 2 - var(--board) / 2 - 12px);
+  }
+}
 
 /* The canvas covers the viewport and is clipped to the card each frame, so
    it tracks the keyboard as it resizes.
@@ -427,14 +511,33 @@ body.keys-open .expand .bar{opacity:1;transform:translateX(0)}
   pointer-events:none;
 }
 
+/* Stood on end in the channel between the keys and the photograph, at the
+   foot of the card — clear of both, and an aside to the reader rather than
+   part of the invitation, so keeping it out of the column of type gives the
+   whole of its old height there to the photograph.
+
+   .panel begins exactly where the rack ends, so this is measured from the
+   edge of the keys: 6px clear of them, and --couple-w below leaves the same
+   again on the other side of it. */
 .hint{
+  position:absolute;
+  left:6px;
+  bottom:var(--pad-y);
+  z-index:2;
+  /* Turned the other way about, so it reads down the keys rather than up
+     them. Turned about its own bottom-left corner the box would swing out
+     below that corner, so the translate lifts it back by its own length and
+     it stands up and to the right of where it is anchored — the same band of
+     keys either way, only the reading runs the other way along it. */
+  transform:rotate(90deg) translateX(-100%);
+  transform-origin:left bottom;
+  pointer-events:none;
   font-family:var(--util);
   font-weight:300;
   font-size:.65rem;
   letter-spacing:.22em;
   text-transform:uppercase;
   color:var(--ivory-45);
-  margin-bottom:clamp(13px,2.4vh,30px);
   white-space:nowrap;
   transition:opacity .7s ease;
 }
@@ -454,7 +557,7 @@ body.keys-open .expand .bar{opacity:1;transform:translateX(0)}
   margin-top:clamp(11px,2.2vh,30px);
   font-family:var(--display);
   font-weight:400;
-  font-size:clamp(2.4rem,11.4vw,4.6rem);
+  font-size:clamp(2rem,9.4vw,3.8rem);
   line-height:1;
   color:var(--ivory);
   text-shadow:0 0 46px rgba(244,240,232,.12);
@@ -751,8 +854,10 @@ body.keys-open .expand .bar{opacity:1;transform:translateX(0)}
   from{opacity:0;transform:translateY(12px)}
   to  {opacity:1;transform:translateY(0)}
 }
+/* opacity only: .hint is turned on its side and must stay that way */
+@keyframes hint-in{from{opacity:0}to{opacity:1}}
 body.revealed .inner > *{animation:fade-up .55s ease-out backwards}
-body.revealed .hint          {animation-delay:.05s}
+body.revealed .hint          {animation:hint-in .7s ease-out .05s backwards}
 body.revealed .eyebrow       {animation-delay:.12s}
 body.revealed .names         {animation-delay:.2s}
 body.revealed .invite        {animation-delay:.3s}
@@ -895,7 +1000,9 @@ body.playing-on .eq i:nth-child(5){animation-duration:1.4s;animation-delay:-.72s
   .gate.opening .env-card,
   .gate.opening .seal,
   .gate.gone{animation-duration:.01s}
-  body.revealed .inner > *{animation:none}
+  body.revealed .inner > *,
+  body.revealed .hint{animation:none}
+  .couple{transition:none}
   .playing{transition:none}
   body.playing-on .eq i{animation:none;transform:scaleY(.6)}
 }
@@ -951,8 +1058,6 @@ body.playing-on .eq i:nth-child(5){animation-duration:1.4s;animation-delay:-.72s
 
   <main class="panel" id="panel">
     <div class="inner">
-      <p class="hint" id="hint">♪ &nbsp;Tap the keys</p>
-
       <p class="eyebrow" id="eyebrow"></p>
 
       <h1 class="names">
@@ -976,10 +1081,15 @@ body.playing-on .eq i:nth-child(5){animation-duration:1.4s;animation-delay:-.72s
 
       <p class="rsvp" id="rsvp"></p>
     </div>
+    <p class="hint" id="hint">♪ &nbsp;Tap the keys</p>
+
     <div class="loading" id="loading" role="status" aria-label="Loading the piano">
       <span class="loading-label">Tuning the piano</span>
       <span class="loading-track"><i id="loadingBar"></i></span>
     </div>
+    <img class="couple" src="couple.webp" width="740" height="803"
+         alt="" aria-hidden="true" draggable="false" decoding="async">
+
     <button class="playing" id="playing" type="button" aria-label="Stop the music">
       <span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
       Stop
