@@ -448,11 +448,12 @@ body.keys-open .expand .bar{opacity:1;transform:translateX(0)}
      them with nothing spare around it, so the box is the photograph exactly:
      the room reserved is the room used, none of it held for empty sky.
 
-     Width runs to the keys and stops 28px short of them, which is the channel
-     .hint stands up in. The card is narrow on a phone and the leftover height
+     Width runs to the keys and stops 30px short of them, which is the channel
+     .hint stands up in — that figure follows the hint's font size, since
+     turned on its side it is the type's line box that sets the width. The card is narrow on a phone and the leftover height
      is generous, so it is the width that decides how large the two of them
      stand, and every pixel of it that is not the hint's is spent. */
-  --couple-w:min(calc(100vw - var(--board) - 28px), 430px);
+  --couple-w:min(calc(100vw - var(--board) - 30px), 430px);
   align-self:flex-end;
   flex:0 1 auto;
   min-height:0;
@@ -534,7 +535,7 @@ body.revealed .couple{opacity:1}
   pointer-events:none;
   font-family:var(--util);
   font-weight:300;
-  font-size:.65rem;
+  font-size:.72rem;
   letter-spacing:.22em;
   text-transform:uppercase;
   color:var(--ivory-45);
