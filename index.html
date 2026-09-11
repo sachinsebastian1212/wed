@@ -383,11 +383,14 @@ body.keys-open .expand .bar{opacity:1;transform:translateX(0)}
     margin-top:0;
     font-size:clamp(1.5rem,6.6svh,2.6rem);
   }
+  body.keys-open .inner .names{
+    animation:names-in .85s cubic-bezier(.22,.61,.36,1) .22s backwards;
+  }
 }
 
-/* ---- a narrow portrait card can't hold anything once the keys grow this
-        wide, so it gives the whole of itself over to them. The two names
-        keep their place only where the keys lie down, in landscape ---- */
+/* ---- a narrow portrait card can't hold the invitation once the keys grow
+        this wide, so it puts it away and keeps only the two names, turned on
+        their side to read down what is left of the card ---- */
 @media (orientation:portrait) and (max-width:620px){
   body.keys-open .hint,
   body.keys-open .eyebrow,
@@ -398,8 +401,47 @@ body.keys-open .expand .bar{opacity:1;transform:translateX(0)}
   body.keys-open .when-time,
   body.keys-open .where,
   body.keys-open .rsvp,
-  body.keys-open .names,
   body.keys-open .couple{display:none}
+
+  body.keys-open .panel{padding-left:0}
+  body.keys-open .inner{position:static}   /* so the names sit against the panel */
+
+  /* Wide open there is no width left to set type across, so the two names
+     go onto a single line and take a quarter turn clockwise, reading down
+     the strip beside the keys. One line, not the card's stack of three: a
+     stack turned on its side is three short columns in the middle of a tall
+     strip, where one line runs the length of it — and being only one line
+     thick, it can be set far larger in the same width.
+
+     Sized from the height, since the length of the line is what fills the
+     strip: at 9svh "Sachin & Kesia" runs a little over half of it — any
+     larger and the name stops reading as a name and becomes the wall.
+     left centres it in the room between the tab (44px) and the far edge;
+     top is lifted by half the Stop button's footing (its 35px plus the
+     14-32px it stands off the floor), so the line is centred in the room
+     above that button rather than running down onto it. */
+  body.keys-open .names{
+    position:absolute;
+    left:calc(50% + 22px);
+    top:calc(50% - 30px);
+    display:flex;
+    flex-direction:row;
+    align-items:baseline;
+    gap:.26em;
+    width:max-content;
+    margin:0;
+    white-space:nowrap;
+    font-size:clamp(1.8rem,9svh,5.5rem);
+    transform:translate(-50%,-50%) rotate(90deg);
+  }
+  body.keys-open .amp{margin:0;font-size:.62em}
+
+  /* .inner's own reveal animation is declared further down the sheet and
+     carries the same weight, so this takes the extra class to outrank it
+     rather than relying on order */
+  body.keys-open .inner .names{
+    animation:names-turn .85s cubic-bezier(.22,.61,.36,1) .22s backwards;
+  }
 }
 
 /* ============ the card ============ */
@@ -857,6 +899,15 @@ body.revealed .couple{opacity:1}
 }
 /* opacity only: .hint is turned on its side and must stay that way */
 @keyframes hint-in{from{opacity:0}to{opacity:1}}
+
+/* The names arriving as the keys finish widening, so the strip they stand in
+   is not simply bare one frame and lettered the next. The turned one has to
+   carry the whole transform through both ends of the keyframe, or it would
+   drop its quarter turn for the length of the animation. */
+@keyframes names-in  {from{opacity:0;transform:scale(.94)}
+                      to  {opacity:1;transform:scale(1)}}
+@keyframes names-turn{from{opacity:0;transform:translate(-50%,-50%) rotate(90deg) scale(.9)}
+                      to  {opacity:1;transform:translate(-50%,-50%) rotate(90deg) scale(1)}}
 body.revealed .inner > *{animation:fade-up .55s ease-out backwards}
 body.revealed .hint          {animation:hint-in .7s ease-out .05s backwards}
 body.revealed .eyebrow       {animation-delay:.12s}
@@ -1002,7 +1053,8 @@ body.playing-on .eq i:nth-child(5){animation-duration:1.4s;animation-delay:-.72s
   .gate.opening .seal,
   .gate.gone{animation-duration:.01s}
   body.revealed .inner > *,
-  body.revealed .hint{animation:none}
+  body.revealed .hint,
+  body.keys-open .inner .names{animation:none}
   .couple{transition:none}
   .playing{transition:none}
   body.playing-on .eq i{animation:none;transform:scaleY(.6)}
